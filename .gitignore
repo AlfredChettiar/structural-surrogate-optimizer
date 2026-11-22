@@ -1,0 +1,10 @@
+﻿__pycache__/
+*.py[cod]
+.venv/
+.env
+data/*.csv
+data/*.parquet
+models/*.pt
+models/*.pkl
+models/*.joblib
+.claude/settings.local.json
