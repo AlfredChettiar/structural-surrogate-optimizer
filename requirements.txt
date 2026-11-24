@@ -1,0 +1,10 @@
+# Versions the full pipeline and test suite were last run with (Python 3.13, Linux, CPU-only torch).
+numpy==2.5.5
+pandas==3.1.1
+scipy==1.18.1
+scikit-learn==1.9.1
+joblib==1.6.0
+torch==2.15.0
+plotly==7.1.0
+streamlit==1.67.0
+pytest==9.2.0

@@ -11,3 +11,6 @@ models/*.joblib
 .pytest_cache/
 reports/figures/*.png
 logs/
+
+# Local prompt log written by the Claude Code hook
+prompts/
