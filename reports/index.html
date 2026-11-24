@@ -1,0 +1,30 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Structural surrogate & Pareto optimiser - verification gallery</title>
+<style>body{font-family:Inter,Segoe UI,Arial,sans-serif;background:#fcfcfb;color:#0b0b0b;margin:0;padding:32px;max-width:1280px;margin:auto}
+h1{font-size:24px}p{color:#52514e}figure{margin:0 0 40px}iframe{width:100%;height:620px;border:1px solid #e1e0d9;border-radius:8px;background:#fcfcfb}
+figcaption{color:#52514e;margin-top:8px}</style></head><body>
+<h1>Physics-guided structural surrogate &amp; Pareto weight optimiser</h1>
+<p>Verification and benchmark figures. See model_selection.md and optimizer_selection.md for the decision write-ups.</p>
+<figure><iframe src="figures/01_doe_coverage.html" loading="lazy"></iframe><figcaption><b>Doe Coverage</b> - 1,500-design DOE: space-filling LHS plus a face-centred CCD that pins corners and axes.</figcaption></figure>
+<figure><iframe src="figures/02_parity_selected.html" loading="lazy"></iframe><figcaption><b>Parity Selected</b> - Selected surrogate vs. noise-free FE on 300 held-out designs (±10 % band).</figcaption></figure>
+<figure><iframe src="figures/03_residual_hist.html" loading="lazy"></iframe><figcaption><b>Residual Hist</b> - Relative error distribution per output.</figcaption></figure>
+<figure><iframe src="figures/04_qq.html" loading="lazy"></iframe><figcaption><b>Qq</b> - Residual normality check.</figcaption></figure>
+<figure><iframe src="figures/05_residual_vs_pred.html" loading="lazy"></iframe><figcaption><b>Residual Vs Pred</b> - Error vs. magnitude (heteroscedasticity).</figcaption></figure>
+<figure><iframe src="figures/06_accuracy_vs_latency.html" loading="lazy"></iframe><figcaption><b>Accuracy Vs Latency</b> - Every surrogate on one accuracy-speed map.</figcaption></figure>
+<figure><iframe src="figures/06b_model_scorecard.html" loading="lazy"></iframe><figcaption><b> Model Scorecard</b> - Weighted composite score used to select the surrogate.</figcaption></figure>
+<figure><iframe src="figures/07_model_radar.html" loading="lazy"></iframe><figcaption><b>Model Radar</b> - Normalised multi-criteria comparison of the surrogates.</figcaption></figure>
+<figure><iframe src="figures/08_speedup.html" loading="lazy"></iframe><figcaption><b>Speedup</b> - Inference speedup over the physics (beam FE) baseline.</figcaption></figure>
+<figure><iframe src="figures/09_learning_curves.html" loading="lazy"></iframe><figcaption><b>Learning Curves</b> - Data efficiency: stress error vs. training size.</figcaption></figure>
+<figure><iframe src="figures/10_calibration.html" loading="lazy"></iframe><figcaption><b>Calibration</b> - Do the GP&#x27;s 95 % intervals contain 95 % of the truth?</figcaption></figure>
+<figure><iframe src="figures/11_extrapolation.html" loading="lazy"></iframe><figcaption><b>Extrapolation</b> - Behaviour outside the training region.</figcaption></figure>
+<figure><iframe src="figures/12_sobol_stress.html" loading="lazy"></iframe><figcaption><b>Sobol Stress</b> - Which inputs drive peak stress.</figcaption></figure>
+<figure><iframe src="figures/13_sobol_frequency.html" loading="lazy"></iframe><figcaption><b>Sobol Frequency</b> - Which inputs drive the first mode.</figcaption></figure>
+<figure><iframe src="figures/14_pdp_stress.html" loading="lazy"></iframe><figcaption><b>Pdp Stress</b> - Partial dependence of peak stress.</figcaption></figure>
+<figure><iframe src="figures/15_nn_training.html" loading="lazy"></iframe><figcaption><b>Nn Training</b> - Neural-network learning curves.</figcaption></figure>
+<figure><iframe src="figures/20_pareto.html" loading="lazy"></iframe><figcaption><b>Pareto</b> - Pareto fronts of all optimisers over the 5,000-candidate cloud (colour = first mode).</figcaption></figure>
+<figure><iframe src="figures/21_hv_convergence.html" loading="lazy"></iframe><figcaption><b>Hv Convergence</b> - Hypervolume vs. evaluation budget.</figcaption></figure>
+<figure><iframe src="figures/22_optimizer_scores.html" loading="lazy"></iframe><figcaption><b>Optimizer Scores</b> - Weighted scorecard used to pick the optimiser.</figcaption></figure>
+<figure><iframe src="figures/23_fe_verification.html" loading="lazy"></iframe><figcaption><b>Fe Verification</b> - Claimed-optimal designs re-solved with FE: who survives?</figcaption></figure>
+<figure><iframe src="figures/24_parallel_coordinates.html" loading="lazy"></iframe><figcaption><b>Parallel Coordinates</b> - Geometry of the optimal family.</figcaption></figure>
+<figure><iframe src="figures/25_mass_saving.html" loading="lazy"></iframe><figcaption><b>Mass Saving</b> - Baseline vs. optimised design, both solved with FE.</figcaption></figure></body></html>

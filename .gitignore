@@ -1,4 +1,4 @@
-﻿__pycache__/
+__pycache__/
 *.py[cod]
 .venv/
 .env
@@ -8,3 +8,6 @@ models/*.pt
 models/*.pkl
 models/*.joblib
 .claude/settings.local.json
+.pytest_cache/
+reports/figures/*.png
+logs/

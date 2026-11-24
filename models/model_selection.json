@@ -1,0 +1,127 @@
+{
+  "selected_model": "gaussian_process",
+  "rule": {
+    "r2_gate": 0.98,
+    "method": "weighted composite score (min-max normalised, 1 = best)",
+    "weights": {
+      "stress_max_err_pct": 0.25,
+      "stress_mape_pct": 0.2,
+      "mean_mape_pct": 0.15,
+      "mean_max_err_pct": 0.1,
+      "extrapolation_stress_mape_pct": 0.15,
+      "cv_min_r2": 0.05,
+      "uncertainty": 0.05,
+      "batch_latency_ms": 0.05
+    }
+  },
+  "eligible_ranking": [
+    "gaussian_process",
+    "ridge_poly",
+    "residual_mlp",
+    "physics_guided_mlp"
+  ],
+  "scores": {
+    "ridge_poly": 0.39045630775432527,
+    "gaussian_process": 0.9461634008157526,
+    "residual_mlp": 0.33350392173603743,
+    "physics_guided_mlp": 0.1837575773355863
+  },
+  "score_breakdown": {
+    "ridge_poly": {
+      "stress_max_err_pct": 0.0483,
+      "stress_mape_pct": 0.0774,
+      "mean_mape_pct": 0.0987,
+      "mean_max_err_pct": 0.0,
+      "extrapolation_stress_mape_pct": 0.1071,
+      "cv_min_r2": 0.009,
+      "uncertainty": 0.0,
+      "batch_latency_ms": 0.05
+    },
+    "gaussian_process": {
+      "stress_max_err_pct": 0.25,
+      "stress_mape_pct": 0.2,
+      "mean_mape_pct": 0.15,
+      "mean_max_err_pct": 0.0962,
+      "extrapolation_stress_mape_pct": 0.15,
+      "cv_min_r2": 0.05,
+      "uncertainty": 0.05,
+      "batch_latency_ms": 0.0
+    },
+    "residual_mlp": {
+      "stress_max_err_pct": 0.1754,
+      "stress_mape_pct": 0.0,
+      "mean_mape_pct": 0.0,
+      "mean_max_err_pct": 0.1,
+      "extrapolation_stress_mape_pct": 0.0,
+      "cv_min_r2": 0.0174,
+      "uncertainty": 0.0,
+      "batch_latency_ms": 0.0407
+    },
+    "physics_guided_mlp": {
+      "stress_max_err_pct": 0.0,
+      "stress_mape_pct": 0.036,
+      "mean_mape_pct": 0.0123,
+      "mean_max_err_pct": 0.0476,
+      "extrapolation_stress_mape_pct": 0.0433,
+      "cv_min_r2": 0.0,
+      "uncertainty": 0.0,
+      "batch_latency_ms": 0.0446
+    }
+  },
+  "criteria": {
+    "ridge_poly": {
+      "stress_max_err_pct": 18.495334191951176,
+      "stress_mape_pct": 1.979277332867542,
+      "mean_mape_pct": 1.4507487945875532,
+      "mean_max_err_pct": 20.563107295311276,
+      "extrapolation_stress_mape_pct": 2.5368292926835503,
+      "cv_min_r2": 0.9864592651964765,
+      "uncertainty": 0.0,
+      "batch_latency_ms": 0.0010315999970771372
+    },
+    "gaussian_process": {
+      "stress_max_err_pct": 12.441574455855772,
+      "stress_mape_pct": 1.408823670790099,
+      "mean_mape_pct": 1.25668781009963,
+      "mean_max_err_pct": 14.38317193240216,
+      "extrapolation_stress_mape_pct": 1.9169110034996475,
+      "cv_min_r2": 0.9918894182496505,
+      "uncertainty": 1.0,
+      "batch_latency_ms": 0.1362481999967713
+    },
+    "residual_mlp": {
+      "stress_max_err_pct": 14.407237719401596,
+      "stress_mape_pct": 2.339108639883028,
+      "mean_mape_pct": 1.8243484502711993,
+      "mean_max_err_pct": 14.179514136475731,
+      "extrapolation_stress_mape_pct": 5.104705682394956,
+      "cv_min_r2": 0.9875726405808829,
+      "uncertainty": 0.0,
+      "batch_latency_ms": 0.002553700003772974
+    },
+    "physics_guided_mlp": {
+      "stress_max_err_pct": 20.335924785151608,
+      "stress_mape_pct": 2.17166285988538,
+      "mean_mape_pct": 1.7779369904173823,
+      "mean_max_err_pct": 17.228146996112933,
+      "extrapolation_stress_mape_pct": 3.8487704784761836,
+      "cv_min_r2": 0.9852644996365821,
+      "uncertainty": 0.0,
+      "batch_latency_ms": 0.001741599990054965
+    }
+  },
+  "trace": [
+    "ridge_poly: CV min R2 = 0.9865 -> eligible",
+    "gaussian_process: CV min R2 = 0.9919 -> eligible",
+    "residual_mlp: CV min R2 = 0.9876 -> eligible",
+    "physics_guided_mlp: CV min R2 = 0.9853 -> eligible",
+    "random_forest: CV min R2 = 0.9346 -> rejected (below gate)",
+    "hist_gradient_boosting: CV min R2 = 0.9745 -> rejected (below gate)",
+    "svr: CV min R2 = 0.9556 -> rejected (below gate)",
+    "gaussian_process: composite score 0.946",
+    "ridge_poly: composite score 0.390",
+    "residual_mlp: composite score 0.334",
+    "physics_guided_mlp: composite score 0.184",
+    "Highest composite score -> gaussian_process"
+  ]
+}

@@ -1,0 +1,322 @@
+{
+  "n_samples": 1500,
+  "n_lhs": 1423,
+  "n_ccd": 77,
+  "seed": 42,
+  "features": [
+    "tube_od_mm",
+    "wall_thickness_mm",
+    "gusset_thickness_mm",
+    "bend_radius_mm",
+    "yield_strength_mpa",
+    "dynamic_load_factor"
+  ],
+  "targets": [
+    "mass_kg",
+    "peak_von_mises_mpa",
+    "max_deflection_mm",
+    "first_mode_hz",
+    "log10_fatigue_life_cycles"
+  ],
+  "bounds": {
+    "tube_od_mm": [
+      22.0,
+      38.0
+    ],
+    "wall_thickness_mm": [
+      1.6,
+      3.5
+    ],
+    "gusset_thickness_mm": [
+      2.0,
+      5.0
+    ],
+    "bend_radius_mm": [
+      40.0,
+      90.0
+    ],
+    "yield_strength_mpa": [
+      250.0,
+      480.0
+    ],
+    "dynamic_load_factor": [
+      1.5,
+      4.0
+    ]
+  },
+  "noise_sigma": {
+    "mass_kg": 0.005,
+    "peak_von_mises_mpa": 0.03,
+    "max_deflection_mm": 0.03,
+    "first_mode_hz": 0.015,
+    "log10_fatigue_life_cycles(additive)": 0.05
+  },
+  "centered_l2_discrepancy_lhs": 9.507988777102128e-05,
+  "fe_solver_seconds_total": 10.708,
+  "fe_solver_ms_per_design": 7.139,
+  "constraint_pass_rate": {
+    "safety_factor": 0.43066666666666664,
+    "first_mode": 0.426,
+    "deflection": 0.828,
+    "fatigue": 0.474,
+    "manufacturability": 0.852,
+    "all": 0.22133333333333333
+  },
+  "stats": {
+    "tube_od_mm": {
+      "count": 1500.0,
+      "mean": 30.00004,
+      "std": 4.80318,
+      "min": 22.0,
+      "25%": 25.847,
+      "50%": 30.0,
+      "75%": 34.14926,
+      "max": 38.0
+    },
+    "wall_thickness_mm": {
+      "count": 1500.0,
+      "mean": 2.55001,
+      "std": 0.57037,
+      "min": 1.6,
+      "25%": 2.0573,
+      "50%": 2.55,
+      "75%": 3.04286,
+      "max": 3.5
+    },
+    "gusset_thickness_mm": {
+      "count": 1500.0,
+      "mean": 3.50002,
+      "std": 0.90057,
+      "min": 2.0,
+      "25%": 2.72149,
+      "50%": 3.5,
+      "75%": 4.27901,
+      "max": 5.0
+    },
+    "bend_radius_mm": {
+      "count": 1500.0,
+      "mean": 65.00018,
+      "std": 15.00932,
+      "min": 40.0,
+      "25%": 52.03127,
+      "50%": 65.0,
+      "75%": 77.97008,
+      "max": 90.0
+    },
+    "yield_strength_mpa": {
+      "count": 1500.0,
+      "mean": 364.99862,
+      "std": 69.04278,
+      "min": 250.0,
+      "25%": 305.36534,
+      "50%": 365.0,
+      "75%": 424.65467,
+      "max": 480.0
+    },
+    "dynamic_load_factor": {
+      "count": 1500.0,
+      "mean": 2.74999,
+      "std": 0.75049,
+      "min": 1.5,
+      "25%": 2.10192,
+      "50%": 2.75,
+      "75%": 3.39885,
+      "max": 4.0
+    },
+    "mass_kg": {
+      "count": 1500.0,
+      "mean": 3.54056,
+      "std": 0.84665,
+      "min": 1.82461,
+      "25%": 2.92709,
+      "50%": 3.42367,
+      "75%": 4.09974,
+      "max": 5.92724
+    },
+    "peak_von_mises_mpa": {
+      "count": 1500.0,
+      "mean": 295.84027,
+      "std": 150.33891,
+      "min": 61.94861,
+      "25%": 187.82339,
+      "50%": 262.78319,
+      "75%": 368.33805,
+      "max": 1157.3125
+    },
+    "max_deflection_mm": {
+      "count": 1500.0,
+      "mean": 1.71468,
+      "std": 0.97504,
+      "min": 0.28616,
+      "25%": 1.01651,
+      "50%": 1.45026,
+      "75%": 2.21492,
+      "max": 7.59453
+    },
+    "first_mode_hz": {
+      "count": 1500.0,
+      "mean": 44.04549,
+      "std": 10.06663,
+      "min": 23.16531,
+      "25%": 35.97358,
+      "50%": 43.07381,
+      "75%": 51.19502,
+      "max": 72.91571
+    },
+    "log10_fatigue_life_cycles": {
+      "count": 1500.0,
+      "mean": 5.63632,
+      "std": 2.47484,
+      "min": 0.0,
+      "25%": 3.89342,
+      "50%": 5.80931,
+      "75%": 7.74056,
+      "max": 9.0
+    }
+  },
+  "correlation": {
+    "tube_od_mm": {
+      "tube_od_mm": 1.0,
+      "wall_thickness_mm": 0.0008,
+      "gusset_thickness_mm": -0.0007,
+      "bend_radius_mm": 0.0004,
+      "yield_strength_mpa": 0.0012,
+      "dynamic_load_factor": -0.0006,
+      "mass_kg": 0.6449,
+      "peak_von_mises_mpa": -0.7144,
+      "max_deflection_mm": -0.6706,
+      "first_mode_hz": 0.8331,
+      "log10_fatigue_life_cycles": 0.6422
+    },
+    "wall_thickness_mm": {
+      "tube_od_mm": 0.0008,
+      "wall_thickness_mm": 1.0,
+      "gusset_thickness_mm": 0.0001,
+      "bend_radius_mm": -0.0012,
+      "yield_strength_mpa": 0.001,
+      "dynamic_load_factor": -0.001,
+      "mass_kg": 0.7475,
+      "peak_von_mises_mpa": -0.1595,
+      "max_deflection_mm": -0.4,
+      "first_mode_hz": 0.5113,
+      "log10_fatigue_life_cycles": 0.1387
+    },
+    "gusset_thickness_mm": {
+      "tube_od_mm": -0.0007,
+      "wall_thickness_mm": 0.0001,
+      "gusset_thickness_mm": 1.0,
+      "bend_radius_mm": -0.0001,
+      "yield_strength_mpa": 0.0007,
+      "dynamic_load_factor": -0.0016,
+      "mass_kg": 0.0407,
+      "peak_von_mises_mpa": -0.207,
+      "max_deflection_mm": -0.0379,
+      "first_mode_hz": 0.0347,
+      "log10_fatigue_life_cycles": 0.1792
+    },
+    "bend_radius_mm": {
+      "tube_od_mm": 0.0004,
+      "wall_thickness_mm": -0.0012,
+      "gusset_thickness_mm": -0.0001,
+      "bend_radius_mm": 1.0,
+      "yield_strength_mpa": 0.001,
+      "dynamic_load_factor": 0.0004,
+      "mass_kg": -0.0005,
+      "peak_von_mises_mpa": -0.0392,
+      "max_deflection_mm": -0.0696,
+      "first_mode_hz": 0.0669,
+      "log10_fatigue_life_cycles": 0.0299
+    },
+    "yield_strength_mpa": {
+      "tube_od_mm": 0.0012,
+      "wall_thickness_mm": 0.001,
+      "gusset_thickness_mm": 0.0007,
+      "bend_radius_mm": 0.001,
+      "yield_strength_mpa": 1.0,
+      "dynamic_load_factor": -0.0012,
+      "mass_kg": 0.0005,
+      "peak_von_mises_mpa": -0.0007,
+      "max_deflection_mm": -0.0038,
+      "first_mode_hz": 0.0016,
+      "log10_fatigue_life_cycles": 0.203
+    },
+    "dynamic_load_factor": {
+      "tube_od_mm": -0.0006,
+      "wall_thickness_mm": -0.001,
+      "gusset_thickness_mm": -0.0016,
+      "bend_radius_mm": 0.0004,
+      "yield_strength_mpa": -0.0012,
+      "dynamic_load_factor": 1.0,
+      "mass_kg": -0.0026,
+      "peak_von_mises_mpa": 0.5485,
+      "max_deflection_mm": 0.4954,
+      "first_mode_hz": -0.007,
+      "log10_fatigue_life_cycles": -0.6504
+    },
+    "mass_kg": {
+      "tube_od_mm": 0.6449,
+      "wall_thickness_mm": 0.7475,
+      "gusset_thickness_mm": 0.0407,
+      "bend_radius_mm": -0.0005,
+      "yield_strength_mpa": 0.0005,
+      "dynamic_load_factor": -0.0026,
+      "mass_kg": 1.0,
+      "peak_von_mises_mpa": -0.5865,
+      "max_deflection_mm": -0.7205,
+      "first_mode_hz": 0.9477,
+      "log10_fatigue_life_cycles": 0.5265
+    },
+    "peak_von_mises_mpa": {
+      "tube_od_mm": -0.7144,
+      "wall_thickness_mm": -0.1595,
+      "gusset_thickness_mm": -0.207,
+      "bend_radius_mm": -0.0392,
+      "yield_strength_mpa": -0.0007,
+      "dynamic_load_factor": 0.5485,
+      "mass_kg": -0.5865,
+      "peak_von_mises_mpa": 1.0,
+      "max_deflection_mm": 0.9353,
+      "first_mode_hz": -0.6923,
+      "log10_fatigue_life_cycles": -0.9272
+    },
+    "max_deflection_mm": {
+      "tube_od_mm": -0.6706,
+      "wall_thickness_mm": -0.4,
+      "gusset_thickness_mm": -0.0379,
+      "bend_radius_mm": -0.0696,
+      "yield_strength_mpa": -0.0038,
+      "dynamic_load_factor": 0.4954,
+      "mass_kg": -0.7205,
+      "peak_von_mises_mpa": 0.9353,
+      "max_deflection_mm": 1.0,
+      "first_mode_hz": -0.7658,
+      "log10_fatigue_life_cycles": -0.8607
+    },
+    "first_mode_hz": {
+      "tube_od_mm": 0.8331,
+      "wall_thickness_mm": 0.5113,
+      "gusset_thickness_mm": 0.0347,
+      "bend_radius_mm": 0.0669,
+      "yield_strength_mpa": 0.0016,
+      "dynamic_load_factor": -0.007,
+      "mass_kg": 0.9477,
+      "peak_von_mises_mpa": -0.6923,
+      "max_deflection_mm": -0.7658,
+      "first_mode_hz": 1.0,
+      "log10_fatigue_life_cycles": 0.6223
+    },
+    "log10_fatigue_life_cycles": {
+      "tube_od_mm": 0.6422,
+      "wall_thickness_mm": 0.1387,
+      "gusset_thickness_mm": 0.1792,
+      "bend_radius_mm": 0.0299,
+      "yield_strength_mpa": 0.203,
+      "dynamic_load_factor": -0.6504,
+      "mass_kg": 0.5265,
+      "peak_von_mises_mpa": -0.9272,
+      "max_deflection_mm": -0.8607,
+      "first_mode_hz": 0.6223,
+      "log10_fatigue_life_cycles": 1.0
+    }
+  }
+}

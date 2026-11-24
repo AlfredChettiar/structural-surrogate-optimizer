@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./data/**)",
+      "Read(./models/**)"
+    ]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.venv/Scripts/python.exe\" \"$CLAUDE_PROJECT_DIR/.claude/hooks/refine_prompt.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
