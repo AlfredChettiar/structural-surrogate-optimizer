@@ -40,6 +40,8 @@ config.py ──> physics.py ──> data_generator.py ──> data/chassis_doe_
 
 ## Run it (Windows, project venv)
 
+Install dependencies first: `pip install -r requirements.txt`.
+
 ```powershell
 # whole pipeline, one log per step in .\logs\ (about 10-15 min on a laptop CPU)
 powershell -ExecutionPolicy Bypass -File .\run_pipeline.ps1        # add -Fast for a quick smoke run
@@ -148,6 +150,10 @@ much larger margin.
   scenario (material grade, load case) and can be changed in the app.
 - **Manufacturability limits are rules of thumb.** D/t <= 20 and bend radius >= 1.5 x OD are typical for
   rotary-draw bending without a mandrel; adjust them in `src/config.py` or the app sidebar to a supplier's capability.
+- **Run-to-run variation.** A full rerun on Linux (Python 3.13, versions in `requirements.txt`) passed all 26 tests and
+  reproduced the Gaussian-process selection, NSGA-II selection, GP accuracy (1.4 % stress MAPE), GP calibration, Sobol
+  indices and the 14.6 % mass saving. Neural-network rows and the exact headline geometry vary slightly: the same run gave
+  -17.2 % peak stress for the lightest design instead of -19.3 %. The numbers above are from the original V1 run.
 - **Not modelled yet.** Weld-detail S-N classes, PSD-based random-vibration damage, 3-D frame torsion, uncertainty for
   the neural networks (e.g. deep ensembles).
 
@@ -155,5 +161,9 @@ much larger margin.
 
 `claude_setup/` contains a Claude Code subagent (`prompt-refiner`) and a `UserPromptSubmit` hook that log
 every prompt given in this project and restructure it into a sectioned brief without losing meaning
-(`prompts/PROMPT_HISTORY.md`). Install into `.claude/` with
+(`prompts/PROMPT_HISTORY.md`, local and git-ignored). Install into `.claude/` with
 `powershell -ExecutionPolicy Bypass -File .\claude_setup\install.ps1`.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
