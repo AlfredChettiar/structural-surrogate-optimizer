@@ -9,7 +9,23 @@ from plotly.subplots import make_subplots
 from src.framed import config as fc
 from src.framed import paper_reference as ref
 from src.framed.paper_stats import PAIR_OBJECTIVES
-from src.plots import NEUTRAL, SERIES, STATUS, _layout
+from src.plots import _layout as _v1_layout
+
+# Portfolio tokens (alfredchettiar.github.io styles.css) so figures sit inside the site's light engineering theme
+INK, MUTED, BORDER, SURFACE = "#0f1720", "#4a5566", "#d5dbe3", "#ffffff"
+NEUTRAL = "#a9b3c1"  # paper values
+SERIES = ["#0b6e85", "#a34f00", "#157a40", "#f0a020", "#0e9fbf", "#6d4acf", "#4a5566", "#6b7585"]
+STATUS = {"good": "#157a40", "warning": "#a34f00", "critical": "#b42318"}
+
+
+def _layout(fig, title=None, height=420, **kw):
+    fig = _v1_layout(fig, title, height, **kw)
+    fig.update_layout(paper_bgcolor=SURFACE, plot_bgcolor=SURFACE,
+                      font=dict(family="Public Sans, system-ui, sans-serif", size=12, color=MUTED),
+                      title_font=dict(color=INK, size=15))
+    fig.update_xaxes(gridcolor="#eef1f5", linecolor=BORDER, zerolinecolor=BORDER)
+    fig.update_yaxes(gridcolor="#eef1f5", linecolor=BORDER, zerolinecolor=BORDER)
+    return fig
 
 SHORT = {"Sim 1 Dropout X Disp.": "S1 dropout X", "Sim 1 Dropout Y Disp.": "S1 dropout Y",
          "Sim 1 Bottom Bracket X Disp.": "S1 BB X", "Sim 1 Bottom Bracket Y Disp.": "S1 BB Y",
@@ -116,3 +132,20 @@ def fig_check_status(df: pd.DataFrame, title: str) -> go.Figure:
     fig = go.Figure(go.Bar(y=df["quantity"], x=df["pct_dev"], orientation="h", marker_color=colors,
                            text=df["pct_dev"].round(2).astype(str) + " %", textposition="outside"))
     return _layout(fig, title, height=40 * len(df) + 120, xaxis_title="Deviation from paper (%)")
+
+
+def fig_framed_pareto(front: pd.DataFrame, table: pd.DataFrame, material: str) -> go.Figure:
+    """Surrogate-predicted Pareto front (mass vs in-plane dropout deflection) with reference, knee and lightest."""
+    fig = go.Figure(go.Scatter(x=front["mass_kg"], y=front["dropout_y_mm"], mode="markers", name="Pareto designs",
+                               marker=dict(size=7, color=SERIES[0], opacity=0.7),
+                               hovertemplate="%{x:.2f} kg, %{y:.1f} mm<extra></extra>"))
+    sym = {"reference (frame 3853 geometry)": ("square", MUTED), "knee": ("star", SERIES[3]),
+           "lightest feasible": ("diamond", SERIES[1])}
+    for _, r in table.iterrows():
+        s_, c_ = sym.get(r["design"], ("circle", INK))
+        fig.add_trace(go.Scatter(x=[r["mass_kg"]], y=[r["dropout_y_mm"]], mode="markers", name=r["design"],
+                                 marker=dict(size=14, symbol=s_, color=c_, line=dict(color=INK, width=1)),
+                                 error_x=dict(type="data", symmetric=False, array=[r["mass_hi"] - r["mass_kg"]],
+                                              arrayminus=[r["mass_kg"] - r["mass_lo"]], color=c_)))
+    return _layout(fig, f"{material}: mass vs in-plane dropout deflection (surrogate-predicted)", height=420,
+                   xaxis_title="Frame mass (kg)", yaxis_title="Sim 1 dropout Y deflection (mm)")

@@ -41,8 +41,9 @@ class FramedProblem(ChassisProblem):
     def __post_init__(self):
         self.base = snap_material(self.X_all.loc[[REF_INDEX]].assign(
             **{c: float(c == f"Material={self.material}") for c in fc.MATERIAL_COLS}))
-        self.xl = self.X_all[VARS].quantile(0.01).to_numpy()
-        self.xu = self.X_all[VARS].quantile(0.99).to_numpy()
+        g0 = self.X_all.loc[REF_INDEX, VARS].to_numpy()
+        self.xl = np.minimum(self.X_all[VARS].quantile(0.01).to_numpy(), g0)  # keep the reference itself feasible
+        self.xu = np.maximum(self.X_all[VARS].quantile(0.99).to_numpy(), g0)
         self.n_var = len(VARS)
         self.archive, self.tag, self.n_evals = [], "untagged", 0
         self._f_lo = self._f_hi = None
@@ -102,9 +103,10 @@ def _rows(problem: FramedProblem, G: np.ndarray, labels: list[str], Y_all: pd.Da
 
 def run_study(surrogate, X_all: pd.DataFrame, Y_all: pd.DataFrame, material: str, seed: int = fc.SEED,
               pop_size: int = 100, generations: int = 60) -> dict:
-    ref_bb_z = float(Y_all.loc[REF_INDEX, "Sim 2 Bottom Bracket Z Disp."])
-    p = FramedProblem(surrogate=surrogate, X_all=X_all, material=material, max_bb_z=ref_bb_z)
+    p = FramedProblem(surrogate=surrogate, X_all=X_all, material=material)
     g0 = X_all.loc[REF_INDEX, VARS].to_numpy()[None]
+    # limit = surrogate's own prediction for the reference geometry in this material (no bias between the two)
+    p.max_bb_z = float(p.predict(g0)[1][0, J["Sim 2 Bottom Bracket Z Disp."]])
     for name, algo, kw in (("nsga2", nsga2, dict(pop_size=pop_size, generations=generations)),
                            ("parego", parego, dict(budget=150))):
         p.tag = name

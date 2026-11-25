@@ -32,6 +32,7 @@ TABLE4 = {
 }
 TABLE4_RANKING = ["autogluon", "xgboost", "neural_net", "decision_tree", "knn"]
 R2_TOLERANCE = 0.05
+MAE_TOLERANCE = 0.05  # standardised units
 
 # Tables 6-9: best hyperparameters found by the authors' Bayesian optimisation
 HYPERPARAMS = {

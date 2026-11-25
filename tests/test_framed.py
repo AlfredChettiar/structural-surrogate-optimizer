@@ -173,7 +173,27 @@ def test_autogluon_missing_is_skipped(monkeypatch):
     table = reproduction_table({"knn": {"r2": {"mean": 0.3, "std": 0}, "mae": {"mean": 0.4, "std": 0},
                                         "mse": {"mean": 1, "std": 0}}})
     assert table.loc["autogluon", "status"] == "not run" and table.loc["knn", "status"] == "pass"
-    assert ranking_preserved(table) is None
+    assert ranking_preserved(table)["preserved"] is None
+
+
+def test_ranking_strict_and_partial():
+    t = pd.DataFrame({"ours_r2": [np.nan, 0.6, 0.5, 0.5, 0.3]},
+                     index=["autogluon", "xgboost", "neural_net", "decision_tree", "knn"])
+    r = ranking_preserved(t)
+    assert r["preserved"] is False and r["complete"] is False and "autogluon" not in r["compared"]
+
+
+def test_mae_gates_reproduction():
+    res = {"knn": {"r2": {"mean": 0.306, "std": 0}, "mae": {"mean": 0.6, "std": 0}, "mse": {"mean": 1, "std": 0}}}
+    assert reproduction_table(res).loc["knn", "status"] == "outside tolerance"
+
+
+def test_corrected_ttest():
+    from src.framed.run import corrected_ttest
+    rng = np.random.default_rng(0)
+    b = rng.normal(0.6, 0.05, 50)
+    strong, none = corrected_ttest(b + 0.05, b), corrected_ttest(b + rng.normal(0, 0.05, 50), b)
+    assert strong["p_value"] < 1e-6 and none["p_value"] > 0.01 and strong["wins"] == 50
 
 
 @needs_data
@@ -277,3 +297,45 @@ def test_ci_lower_bound_constraint(framed):
     p = FramedProblem(surrogate=_StubSurrogate(), X_all=framed[0], max_bb_z=1.0)
     ev = p.evaluate(framed[0].loc[[3853], VARS].to_numpy())
     assert ev["V"][0, 0] > 0 and ev["cv"][0] > 0 and not ev["feasible"][0]
+
+
+# ----------------------------------------------------------------------------- Task 7: report
+import json  # noqa: E402
+
+from src.framed.report import build_report  # noqa: E402
+
+
+def _cv(r2, mae=0.2, n=5):
+    per = {c: {"r2": r2, "mae": mae, "max_rel_err_pct": 10.0, "r2_std": r2} for c in fc.Y_COLS}
+    return {"r2": {"mean": r2, "std": 0.01}, "mae": {"mean": mae, "std": 0.01}, "mse": {"mean": 0.4, "std": 0.01},
+            "per_target": per, "fold_scores": {"r2": [r2] * n, "mae": [mae] * n}, "n_folds": n, "wall_seconds": 6.0}
+
+
+def test_report_builds_from_fixtures(tmp_path):
+    from src.framed.baselines import ranking_preserved, reproduction_table
+    from src.framed.run import paired_tests
+    repro = {m: _cv(v["r2"] + 0.01, v["mae"]) for m, v in ref.TABLE4.items() if m != "autogluon"}
+    t = reproduction_table(repro)
+    ours = {"deep_ensemble_phys": _cv(0.73)}
+    arts = {
+        "stats": {"rows": [{"quantity": "Frames: valid", "source": "nb", "paper": 626, "ours": 626, "tol": 2,
+                            "abs_dev": 0, "pct_dev": 0, "pass": True}]},
+        "reproduction": {"models": repro, "table": t.reset_index().to_dict(orient="records"),
+                         "ranking_preserved": ranking_preserved(t)},
+        "ours": {"models": ours, "best": "deep_ensemble_phys", "paired_tests": paired_tests(ours, repro),
+                 "coverage": {"deep_ensemble_phys": {c: {"coverage": 0.95, "median_rel_width": 0.3} for c in fc.Y_COLS}},
+                 "latency": {"analytic_baseline_ms": 0.1, "nominal_fe_seconds": 180.0,
+                             "models": {"deep_ensemble_phys": {"single_ms": 3.0, "batch_ms_per_design": 0.01,
+                                                               "speedup_vs_nominal_fe_batch": 1.8e7}}}},
+        "env": {"cores": 4},
+    }
+    for k, v in arts.items():
+        (tmp_path / f"{k}.json").write_text(json.dumps(v))
+    md = tmp_path / "r.md"
+    page = build_report(tmp_path, tmp_path / "out", md_path=md).read_text()
+    text = md.read_text()
+    assert "Regenwetter" in page and "Regenwetter" in text
+    for m, v in ref.TABLE4.items():
+        assert f"{v['r2']:.3f}" in page and f"{v['mae']:.3f}" in page
+    assert "within tolerance" in page and "not run" in page and "Corrected resampled t-test" in page
+    assert "<script" in page and "eyebrow" not in page

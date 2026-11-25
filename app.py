@@ -76,8 +76,8 @@ with st.sidebar:
     c_dt = st.slider("Max tube D/t", 10.0, 35.0, float(config.CONSTRAINTS["max_d_over_t"]), 0.5)
     c_br = st.slider("Min bend radius / OD", 1.0, 3.0, float(config.CONSTRAINTS["min_bend_ratio"]), 0.1)
 
-tab1, tab2, tab3, tab4 = st.tabs(["1 · Real-time surrogate explorer", "2 · Pareto weight optimisation",
-                                  "3 · Model validation & sensitivity", "4 · Benchmark & model selection"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["1 · Real-time surrogate explorer", "2 · Pareto weight optimisation",
+                                  "3 · Model validation & sensitivity", "4 · Benchmark & model selection", "5 · FRAMED benchmark (published data)"])
 
 # ============================================================================ TAB 1
 with tab1:
@@ -293,3 +293,28 @@ with tab4:
             show(plots.fig_hv_convergence(OPT), key="hv")
         show(plots.fig_fe_verification(art["pareto"]), key="fe_ver")
         show(plots.fig_parallel(art["pareto"], OPT["selected_optimizer"]), key="parcoords")
+
+
+with tab5:
+    from src.framed import figures as FF
+    from src.framed.run import load_artifact
+    st.caption("Benchmark on the peer-reviewed FRAMED dataset (Regenwetter et al., Computer-Aided Design 2023).")
+    repro, ours_, opt_ = load_artifact("reproduction"), load_artifact("ours"), load_artifact("optimize")
+    if repro is None:
+        st.info("No FRAMED artefacts yet. Run: `python -m src.framed.run --stage all`")
+    else:
+        st.subheader("Table 4 reproduction")
+        t = pd.DataFrame(repro["table"]).set_index("model")
+        table(t[["paper_r2", "ours_r2", "delta_r2", "paper_mae", "ours_mae", "status"]].round(3))
+        show(FF.fig_table4_comparison(t), key="framed_t4")
+        if ours_:
+            st.subheader("This project's models (same folds)")
+            table(pd.DataFrame({k: {"R2": v["r2"]["mean"], "R2 std": v["r2"]["std"], "MAE": v["mae"]["mean"],
+                                    "folds": v["n_folds"]} for k, v in ours_["models"].items()}).T.round(3))
+        if opt_:
+            st.subheader("Lightweighting of frame 3853 (surrogate-predicted, not FE re-verified)")
+            for mat, stt in opt_["studies"].items():
+                st.markdown(f"**{mat}**")
+                table(pd.DataFrame(stt["table"])[["design", "mass_kg", "dropout_y_mm", "sf1_lo", "sf3_lo",
+                                                   "mass_change_pct", "feasible"]].round(3))
+        st.markdown("Full report: `reports/framed/index.html`")

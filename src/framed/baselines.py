@@ -99,7 +99,10 @@ class TorchMLP:
                 best_state = {k: t.clone() for k, t in self.net.state_dict().items()}
             elif (wait := wait + 1) >= self.patience:
                 break
+        if best_state is None:
+            raise RuntimeError("validation loss never improved (NaN or empty validation split)")
         self.net.load_state_dict(best_state)
+        self.val_mask = val.numpy()
         self.epochs = _ + 1
         return self
 
@@ -180,19 +183,22 @@ def reproduction_table(results: dict) -> pd.DataFrame:
     for m, paper in ref.TABLE4.items():
         r = results.get(m)
         ours = (r or {}).get("r2", {}).get("mean", np.nan)
+        ours_mae = (r or {}).get("mae", {}).get("mean", np.nan)
+        ok = abs(ours - paper["r2"]) <= ref.R2_TOLERANCE and abs(ours_mae - paper["mae"]) <= ref.MAE_TOLERANCE
         rows.append({"model": m, "paper_r2": paper["r2"], "ours_r2": ours,
                      "ours_r2_std": (r or {}).get("r2", {}).get("std", np.nan), "delta_r2": ours - paper["r2"],
                      "paper_mae": paper["mae"], "ours_mae": (r or {}).get("mae", {}).get("mean", np.nan),
                      "ours_mae_std": (r or {}).get("mae", {}).get("std", np.nan),
                      "paper_mse": paper["mse"], "ours_mse": (r or {}).get("mse", {}).get("mean", np.nan),
-                     "status": "not run" if r is None else
-                     ("pass" if abs(ours - paper["r2"]) <= ref.R2_TOLERANCE else "outside ±0.05")})
+                     "n_folds": (r or {}).get("n_folds", 0),
+                     "status": "not run" if r is None else ("pass" if ok else "outside tolerance")})
     return pd.DataFrame(rows).set_index("model")
 
 
-def ranking_preserved(table: pd.DataFrame) -> bool | None:
+def ranking_preserved(table: pd.DataFrame) -> dict:
+    """Paper order AutoML >= XGB > NN > DT > KNN, checked on the models that ran (strict except AutoML-XGB)."""
     ran = [m for m in ref.TABLE4_RANKING if not np.isnan(table.loc[m, "ours_r2"])]
-    if len(ran) < 2:
-        return None
     vals = [table.loc[m, "ours_r2"] for m in ran]
-    return bool(all(a >= b for a, b in zip(vals, vals[1:])))
+    ok = all((a >= b) if (m == "autogluon") else (a > b) for m, a, b in zip(ran, vals, vals[1:]))
+    return {"compared": ran, "complete": len(ran) == len(ref.TABLE4_RANKING),
+            "preserved": bool(ok) if len(ran) >= 2 else None}

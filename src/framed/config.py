@@ -31,7 +31,11 @@ DISP_COLS = ["Sim 1 Dropout X Disp.", "Sim 1 Dropout Y Disp.", "Sim 1 Bottom Bra
 SF_COLS = ["Sim 1 Safety Factor", "Sim 3 Safety Factor"]
 MASS_COL = "Model Mass"
 Y_COLS = DISP_COLS + SF_COLS + [MASS_COL]
-ABS_COLS = DISP_COLS + [MASS_COL]  # as in the authors' Analysis.ipynb
+ABS_COLS = DISP_COLS + [MASS_COL]
+# Output units in the released CSV: metres, radians, kg (SolidWorks SI; the paper's Fig. 9 shows the same values in
+# cm and deg, e.g. dropout Y 99th pct 0.18 m vs a 15 cm axis; Analysis.ipynb labels dropout Y "(m)")
+UNITS = {**{c: "m" for c in DISP_COLS}, "Sim 3 Bottom Bracket X Rot.": "rad", **{c: "-" for c in SF_COLS},
+         MASS_COL: "kg"}  # as in the authors' Analysis.ipynb
 N_X = 39
 
 TUBES = ["BB", "TT", "HT", "DT", "CS", "SS", "ST"]

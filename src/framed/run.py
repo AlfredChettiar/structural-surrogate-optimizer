@@ -94,22 +94,29 @@ def stage_baselines(args):
     print(table.round(3).to_string())
 
 
+def corrected_ttest(a: np.ndarray, b: np.ndarray, test_train_ratio: float = 0.25) -> dict:
+    """Nadeau-Bengio corrected resampled t-test (one-sided, a > b) for repeated k-fold CV scores."""
+    from scipy.stats import t as student_t
+    d = np.asarray(a) - np.asarray(b)
+    J = len(d)
+    var = np.var(d, ddof=1)
+    tstat = d.mean() / np.sqrt((1 / J + test_train_ratio) * var) if var > 0 else np.inf * np.sign(d.mean())
+    return {"n_folds": J, "delta": float(d.mean()), "wins": int((d > 0).sum()), "t": float(tstat),
+            "p_value": float(student_t.sf(tstat, J - 1))}
+
+
 def paired_tests(ours: dict, paper: dict) -> dict:
-    """Wilcoxon signed-rank on per-fold R2 (same folds), plus one-sample against the published Table-4 value."""
-    from scipy.stats import wilcoxon
+    """Corrected resampled t-test on per-fold R2 against each reproduced paper model (identical folds), plus the
+    plain difference to the published Table-4 value (descriptive only: different, inferred protocol and data)."""
     from src.framed import paper_reference as ref
     out = {}
     for o, ro in ours.items():
         a = np.array(ro["fold_scores"]["r2"])
-        row = {"vs_published": {}}
-        for p, val in ref.TABLE4.items():
-            row["vs_published"][p] = {"delta": float(a.mean() - val["r2"]),
-                                      "p_value": float(wilcoxon(a - val["r2"], alternative="greater").pvalue)}
+        row = {"vs_published_delta": {p: float(a.mean() - v["r2"]) for p, v in ref.TABLE4.items()}}
         for p, rp in paper.items():
             b = np.array(rp["fold_scores"]["r2"])
             n = min(len(a), len(b))
-            row[p] = {"n_folds": n, "delta": float((a[:n] - b[:n]).mean()), "wins": int((a[:n] > b[:n]).sum()),
-                      "p_value": float(wilcoxon(a[:n], b[:n], alternative="greater").pvalue)}
+            row[p] = corrected_ttest(a[:n], b[:n])
         out[o] = row
     return out
 
@@ -124,6 +131,8 @@ def stage_ours(args):
     folds = _folds(len(X), args.fast)
     prev = (load_artifact("ours") or {}).get("models", {})
     res = {**prev, **_cv_all(models, X, Y.values, folds, "ours", keys)}
+    for k, r in res.items():
+        r.setdefault("fast", args.fast if k in keys else None)
     cov = (load_artifact("ours") or {}).get("coverage", {})
     for k in keys:
         if getattr(models[k](), "supports_uncertainty", False):
@@ -165,13 +174,19 @@ def stage_optimize(args):
                                                                 "no FE re-check"})
 
 
+def stage_report(args):
+    from src.framed.data import load_framed
+    from src.framed.report import build_report
+    print(build_report(data=load_framed()))
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--stage", default="all")
     ap.add_argument("--fast", action="store_true")
     ap.add_argument("--models", default="", help="comma list; results merge into the existing artefact")
     args = ap.parse_args(argv)
-    stages = {"fetch": stage_fetch, "stats": stage_stats, "baselines": stage_baselines, "ours": stage_ours, "optimize": stage_optimize}
+    stages = {"fetch": stage_fetch, "stats": stage_stats, "baselines": stage_baselines, "ours": stage_ours, "optimize": stage_optimize, "report": stage_report}
     for name in (stages if args.stage == "all" else [args.stage]):
         print(f"=== {name}", flush=True)
         stages[name](args)

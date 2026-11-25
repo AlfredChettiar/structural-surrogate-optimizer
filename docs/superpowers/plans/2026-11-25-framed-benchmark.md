@@ -8,6 +8,8 @@
 benchmark (Table 4), benchmark this project's physics-guided surrogates against it, run an uncertainty-aware optimisation,
 and publish an impeccable report comparing every number with the paper.
 
+**Execution (user decision, 25 Nov):** everything runs in the cloud session (4 vCPU, 16 GB), `.venv/bin/python` on Linux.
+
 **Scope cut (user decision):** no OptiStruct/HyperMesh, no frame-geometry reconstruction, no FE re-verification, no
 generated-frame OOD study. Optimised designs are checked only by surrogate CI and nearest simulated FRAMED design.
 
@@ -36,9 +38,9 @@ generated-frame OOD study. Optimised designs are checked only by surrogate CI an
 ## Design decisions
 
 1. Preprocessing per `Analysis.ipynb`: X = first 39 cols; `abs()` on 7 displacement cols + mass.
-2. Table-4 protocol (inferred): per-fold StandardScaler on X and Y; uniform mean R²/MSE/MAE over 10 standardised targets; 10×5-fold `KFold(shuffle=True, seed 42)`. R² and MAE gate; MSE reported only (paper's MSE inconsistent with its R²).
+2. Table-4 protocol (inferred): per-fold StandardScaler on X and Y; uniform mean R²/MSE/MAE over 10 standardised targets; 10×5-fold `KFold(shuffle=True, seed 42)`. R² and MAE both gate (±0.05 each); MSE reported only (paper's MSE inconsistent with its R²).
 3. Reproduction passes: each model within ±0.05 R² of Table 4 and ranking AutoML ≥ XGB > NN > DT > KNN. Misses are reported, never tuned away.
-4. "My model": beam-theory features (A, I, J, EI, GJ per tube, `mass_prior` = Σ ρ·A·L over tubes with explicit length ST/HT/DT/CS/BB, σy), log target transforms, GP (95 % CI), deep ensemble (CI), physics-guided MLP, plus XGB/AutoGluon on the same features. Same 50 folds as reproduction; paired Wilcoxon test.
+4. "My model": beam-theory features (A, I, J, EI, GJ per tube, `mass_prior` = Σ ρ·A·L over tubes with explicit length ST/HT/DT/CS/BB, σy), log target transforms, GP (95 % CI), deep ensemble (CI), physics-guided MLP, plus XGB/AutoGluon on the same features. Same 50 folds as reproduction; paired Nadeau–Bengio corrected resampled t-test (Gate A: Wilcoxon on overlapping folds overstates significance); the difference to published Table 4 values is descriptive only.
 5. Guardrails: mass > 0, |disp| ≥ 0, SF ∈ [0, 20], finite; inputs clipped to training range and flagged.
 6. Speedup baseline: analytic `mass_prior` computation (latency); nominal FE 180 s (`config.NOMINAL_INDUSTRIAL_FE_SECONDS`) labelled nominal.
 7. Paper figure pages rendered locally only (`reports/framed/paper_pages/`, git-ignored); public report cites "Fig. N in [1]" unless arXiv licence permits reuse.
@@ -90,11 +92,11 @@ generated-frame OOD study. Optimised designs are checked only by surrogate CI an
 ### Task 4: Reproduce Table 4 (paper models)
 **Produces:** `paper_models(seed) -> dict[str, factory]` (`decision_tree, knn, xgboost, neural_net, autogluon?`); `cross_validate(factory, X, Y, folds) -> dict` (r2/mse/mae mean±std standardised, `per_target` physical R²/MAE/max rel err, `fold_scores`, `oof_pred`); `reproduction_table(results)`; `fig_parity_grid`, `fig_table4_comparison`.
 - [ ] Tests: `test_cv_metric_on_perfect_model`; `test_paper_hyperparameters`; `test_autogluon_missing_is_skipped`; `test_reproduction_knn_dt` (`slow`, 1×5 folds, ±0.05). Register `slow` in `pytest.ini`.
-- [ ] red → implement → `--stage baselines` (10×5 folds; AutoGluon 1×5, `medium_quality`, 120 s/target) → `models/framed/reproduction.json` → green → commit `feat(framed): reproduce Table 4`.
+- [ ] red → implement → `--stage baselines` (10×5 folds; AutoGluon 1×5 in its own `.venv-ag` via subprocess, `medium_quality`, 90 s/target) → `models/framed/reproduction.json` → green → commit `feat(framed): reproduce Table 4`.
 - [ ] 🔍 **Gate A** reviewer subagent on Tasks 1–4: protocol vs decision 2, hyperparameters vs Tables 6–9, fold leakage, honest pass/fail. Fix, re-test.
 
 ### Task 5: My surrogates vs the paper
-**Produces:** `transform_targets / inverse_transform_targets` (log(y+eps), eps = 1 % training median); `guard_framed(Y)`; `clip_framed_inputs(X, lo, hi) -> (X, flag)`; `our_models(seed)` → `xgboost_phys`, `autogluon_phys?`, `gp_phys` (ARD Matern 2.5 + White, top-20 |corr| features), `deep_ensemble_phys` (5× MLP 3×128 SiLU), `pg_mlp` (mass as log(mass/mass_prior)); UQ: `predict_interval(X, 0.95) -> (lo, mean, hi)`; `latency_report(models, X)`.
+**Produces:** `transform_targets / inverse_transform_targets` (log(y+eps), eps = 1 % training median); `guard_framed(Y)`; `clip_framed_inputs(X, lo, hi) -> (X, flag)`; `our_models(seed)` → `xgboost_phys`, `autogluon_phys?`, `gp_phys` (ARD Matern 2.5 + White, top-12 |corr| features, kernel fitted on a 400-row subsample: the 20-feature version took >10 min per fold), `deep_ensemble_phys` (5× MLP 3×128 SiLU), `pg_mlp` (mass as log(mass/mass_prior)); UQ: `predict_interval(X, 0.95) -> (lo, mean, hi)`; `latency_report(models, X)`.
 - [ ] Tests: `test_transform_roundtrip`; `test_guard_framed`; `test_interval_contains_mean`; `test_improved_beats_raw_xgboost` (`slow`).
 - [ ] red → implement → `--stage ours` → `models/framed/ours.json` (same 50 folds, per-target metrics, CI coverage, Wilcoxon vs AutoML or vs published 0.605, latency) → green → commit `feat(framed): physics-informed surrogates with UQ`.
 

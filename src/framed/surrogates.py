@@ -33,8 +33,10 @@ def inverse_transform_targets(T: np.ndarray, eps: np.ndarray) -> np.ndarray:
 
 def guard_framed(Y: np.ndarray) -> np.ndarray:
     """Physical guardrails: finite, mass > 0, displacement magnitudes >= 0, 0 <= SF <= SF_CAP."""
-    Y = np.nan_to_num(np.atleast_2d(np.asarray(Y, float)), nan=0.0, posinf=fc.SF_CAP, neginf=0.0)
-    Y = np.clip(Y, 0.0, None)
+    Y = np.atleast_2d(np.asarray(Y, float)).copy()
+    big = np.nanmax(np.where(np.isfinite(Y), Y, np.nan), axis=0)
+    Y = np.where(np.isposinf(Y), np.nan_to_num(big, nan=0.0)[None], Y)  # +inf -> largest finite value in column
+    Y = np.clip(np.nan_to_num(Y, nan=0.0, neginf=0.0), 0.0, None)
     sf = [fc.Y_COLS.index(c) for c in fc.SF_COLS]
     Y[:, sf] = np.clip(Y[:, sf], 0.0, fc.SF_CAP)
     Y[:, MASS_J] = np.maximum(Y[:, MASS_J], 1e-6)
@@ -99,9 +101,8 @@ class DeepEnsemble:
     def fit(self, X, Y):
         for m in self.members:
             m.fit(X, Y)
-        # aleatoric part: residual variance on the training data (the members' own early-stop split is inside)
-        P = np.stack([m.predict(X) for m in self.members])
-        self.noise_var = np.var(Y - P.mean(0), axis=0)
+        # aleatoric part: each member's residual variance on its own held-out early-stopping split
+        self.noise_var = np.mean([np.var(Y[m.val_mask] - m.predict(X[m.val_mask]), axis=0) for m in self.members], 0)
         return self
 
     def predict_dist(self, X):
