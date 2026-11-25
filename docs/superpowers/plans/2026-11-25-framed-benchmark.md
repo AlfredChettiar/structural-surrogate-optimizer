@@ -1,120 +1,139 @@
-# FRAMED Benchmark (Reproduce, then Improve) Implementation Plan
+# FRAMED Benchmark (Reproduce, Cross-check with OptiStruct, Improve, Report) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: superpowers:executing-plans (native mode, chosen by the user).
+> Reviews are done by a **subagent** using superpowers:requesting-code-review at the three review gates marked
+> 🔍 below. The report task uses the `impeccable:impeccable` skill. Steps use checkbox (`- [ ]`) syntax.
 
-**Goal:** Add a second, peer-reviewed data track to the project: load the published FRAMED dataset, reproduce the
-paper's statistics, figures and surrogate results (Table 4), then run this project's own physics-guided surrogates,
-uncertainty, out-of-distribution test and Pareto optimiser on the same design space and show the gains.
+**Goal:** On the user's Windows machine, reproduce the published FRAMED bicycle-frame study (data, statistics, figures,
+surrogate results), cross-check its SolidWorks FE with an independent Altair OptiStruct beam model, run this project's
+physics-guided surrogates and uncertainty-aware Pareto optimiser on the same design space, FE-verify the optimised
+frames in OptiStruct, and publish a portfolio-grade report that compares every number and plot with the paper.
 
-**Architecture:** A new self-contained package `src/framed/` (data, paper reproduction, physics features,
-surrogates, optimisation, figures, report). The V1 synthetic motorcycle pipeline stays untouched. Only the Pareto
-algorithms in `src/optimizer.py` and the Plotly style in `src/plots.py` are reused. `src/optimizer.py` is duck-typed:
-any object with `xl, xu, n_var, evaluate(G) -> {"F","cv",...}, normalise(F)` works with `nsga2`, `parego` and the
-other algorithms.
+**Architecture:** A self-contained package `src/framed/` next to the untouched V1 pipeline. It holds data,
+paper reference values, reproduction, an OptiStruct deck writer and runner, physics features, surrogates,
+optimisation, figures and a report builder. From V1 it reuses only `src/optimizer.py` (duck-typed problem
+interface) and the Plotly style in `src/plots.py`. All ML runs locally on the user's CPU, RAM and SSD. OptiStruct
+runs locally in batch mode from Python.
 
-**Tech Stack:** NumPy, Pandas, SciPy, scikit-learn, PyTorch, Plotly, Streamlit, Pytest (existing). New:
-`xgboost` (required, to reproduce the paper's XGBoost baseline) and `autogluon.tabular` (optional, for the paper's
-AutoML model; every step degrades gracefully when it is missing).
+**Tech Stack:** NumPy, Pandas, SciPy, scikit-learn, PyTorch, Plotly, Streamlit, Pytest (existing). Added: `xgboost`,
+`PyMuPDF` (render the paper's figure pages for the side-by-side comparison), `psutil` (record hardware in the
+report), and optionally `autogluon.tabular` (paper's AutoML). External tools: Altair OptiStruct 2026 (batch solver),
+HyperMesh 2026 (visual check of decks and results only).
 
-**Spec:** This document, sections "Source" and "Design decisions" below. Source of truth for every reproduced
-number is the paper (text copy used for this plan: Regenwetter et al., CAD preprint 29 Oct 2022).
+**Spec:** This document ("Source", "Paper reference values", "Design decisions").
 
 ---
+
+## Where and how this runs
+
+- **Machine:** the user's Windows PC, `C:\Users\alfre\Projects\structural-surrogate-optimizer`. This cloud session
+  cannot reach that folder: Remote Control lists it but does not serve it to cloud sessions. Execution therefore
+  happens in a **local Claude Code session** (desktop app or CLI) opened in that folder. This plan is committed on branch
+  `claude/optimistic-meitner-vvd4ne`, so the local session starts by pulling it (Task 0).
+- **Python:** `.\.venv\Scripts\python.exe` for everything (CLAUDE.md).
+- **Execution mode:** native, meaning one session implements every task. A fresh reviewer subagent runs at 🔍 Gate A
+  (after Task 4), 🔍 Gate B (after Task 6) and 🔍 Gate C (after Task 10). Its findings are fixed before moving on.
 
 ## Source
 
 | Item | Value |
 |---|---|
-| Paper | L. Regenwetter, C. Weaver, F. Ahmed, *FRAMED: An AutoML Approach for Structural Performance Prediction of Bicycle Frames*, Computer-Aided Design (Elsevier), 2023. arXiv:2201.10459. MIT DeCoDE Lab. |
-| Data + code | `https://github.com/Lyleregenwetter/FRAMED`, MIT licence, pinned commit `b881634bb3b79240f08fc4285483becf6ec7d7c5` |
-| FE solver | SolidWorks Simulation, solid mesh, blended curvature-based, 0.03 mm minimum cell; mesh-convergence study in paper Sec. 3.5 |
-| Physical validation in paper | Rinard (1996) frame-deflection tests, 3 frames, Table 3 (17–32 % deflection error, 8–14 % mass error) |
-| Design space | 39 model inputs (37 parameters, material one-hot to 3): 18 geometry, 9 tube ODs, 7 wall thicknesses (Sobol, log-scaled 0.5–10 mm), 2 bridge flags, material {steel 4130, Al 6061-T6, Ti-6Al-4V} |
-| Load cases | (1) in-plane: 2000 N up at dropouts, 2000 N down at bottom bracket (BB), head tube fixed; (2) transverse: 500 N lateral at BB; (3) eccentric: 2000 N + 140 N·m at BB |
+| Paper [1] | L. Regenwetter, C. Weaver, F. Ahmed, *FRAMED: An AutoML Approach for Structural Performance Prediction of Bicycle Frames*, Computer-Aided Design (Elsevier), 2023. arXiv:2201.10459. MIT DeCoDE Lab. |
+| Paper PDF | author's site repo `github.com/Lyleregenwetter/Lyleregenwetter.github.io`, `papers/2022_regenwetter_framed.pdf` (preprint dated 29 Oct 2022) |
+| Data + code | `github.com/Lyleregenwetter/FRAMED`, MIT licence, pinned commit `b881634bb3b79240f08fc4285483becf6ec7d7c5` |
+| Files | `all_structural_data_oh.csv` (4047 × 50) sha256 `8506eb3ec69f85fd35c551c630e5eba68c5ce5b2c78b3a42a33ab681f2697b5e`; `all_structural_data_oh_aug.csv` (14852 × 50; rows `Gen 0…Gen 10804` = 10,805 AI-generated frames simulated with the same pipeline) sha256 `3373f943b9968b40923e09a912207c53aeda70e4c2c0f1941f8205c13aab0eb7` |
+| Paper FE | SolidWorks Simulation, solid mesh, 0.03 mm minimum cell, mesh-convergence study (Sec. 3.5); physical validation against Rinard (1996) (Table 3) |
+| Design space | 39 model inputs (37 parameters, material one-hot to 3): 18 geometry (m, deg), 9 tube ODs (m), 7 wall thicknesses (m, Sobol log-scaled 0.5–10 mm), 2 bridge flags, material {AISI 4130, 6061-T6, Ti-6Al-4V} |
+| Load cases | (1) in-plane: 2000 N up at dropouts, 2000 N down at BB, head tube fixed; (2) transverse: 500 N lateral at BB, head tube fixed, dropouts laterally restrained; (3) eccentric: 2000 N down + 140 N·m at BB, head tube fixed |
 | Outputs (10) | Sim 1 dropout X/Y disp., Sim 1 BB X/Y disp., Sim 2 BB Z disp., Sim 3 BB Y disp., Sim 3 BB X rot., Sim 1 SF, Sim 3 SF, model mass |
-| Files used | `all_structural_data_oh.csv` (4047 × 50) sha256 `8506eb3ec69f85fd35c551c630e5eba68c5ce5b2c78b3a42a33ab681f2697b5e`; `all_structural_data_oh_aug.csv` (14852 × 50; rows `Gen 0…Gen 10804` are 10,805 AI-generated frames simulated with the same SolidWorks pipeline) sha256 `3373f943b9968b40923e09a912207c53aeda70e4c2c0f1941f8205c13aab0eb7` |
 
-### Paper numbers to reproduce
+## Paper reference values
 
-- Counts on repo data (`Analysis.ipynb` output): SF1<1 & SF3<1 = 1966; SF1<1 only = 1272; SF3<1 only = 182; both ≥1 (valid) = 626. Non-dominated designs in the 5-objective subset = 76. Paper text: 3419 of 4118 fail at least one case.
-- Table 4 (regression, standardised targets, 10 × 5-fold CV):
+All go into `src/framed/paper_reference.py` as constants, each with its paper location. **Every comparison in the
+report reads from this one file.**
 
-| Metric | Decision Tree | KNN | XGBoost | Neural Net | AutoML |
-|---|---|---|---|---|---|
-| R² | 0.440 | 0.306 | 0.595 | 0.545 | 0.605 |
-| MSE | 1.156 | 1.270 | 0.978 | 1.031 | 0.995 |
-| MAE | 0.297 | 0.412 | 0.208 | 0.263 | 0.182 |
-
-- Best hyperparameters (appendix Tables 6–9):
+- Table 2 materials (steel / Al / Ti): E 205 / 69 / 105 GPa; ν 0.285 / 0.330 / 0.310; G 80 / 26 / 41 GPa; ρ 7850 / 2700 / 4429 kg/m³; UTS 731 / 310 / 1050 MPa; σy 460 / 275 / 827 MPa.
+- Table 3 physical validation (actual / simulated, front defl. mm, rear defl. mm, mass kg): DeRosa SLX 0.40/0.297, 0.15/0.116, 1.966/1.69; Casati Gold Line 0.44/0.3028, 0.15/0.124, 1.966/1.80; Holland SL/SP 0.38/0.26, 0.13/0.107, 1.962/1.77.
+- Table 4 regression (DT / KNN / XGBoost / NN / AutoML): R² 0.440 / 0.306 / 0.595 / 0.545 / 0.605; MSE 1.156 / 1.270 / 0.978 / 1.031 / 0.995; MAE 0.297 / 0.412 / 0.208 / 0.263 / 0.182.
+- Table 5 classification (DT / KNN / XGB / NN / SVM / AutoML) F1 0.750 / 0.736 / 0.722 / 0.736 / 0.620 / 0.915; ROC AUC 0.817 / 0.844 / 0.936 / 0.892 / 0.924 / 0.998.
+- Tables 6–9 best hyperparameters:
   - DT: max_depth 7, splitter best, criterion absolute_error, min_samples_split 5, min_samples_leaf 11, max_features 32
   - KNN: n_neighbors 70, weights distance, metric euclidean
-  - XGBoost: max_depth 6, reg_lambda 72.41212, learning_rate 0.275542, gamma 0.059818, min_child_weight 4.819113, early-stopping patience 8
+  - XGBoost: max_depth 6, reg_lambda 72.41212, learning_rate 0.275542, gamma 0.059818, min_child_weight 4.819113, early-stopping 8
   - NN: 1 hidden layer of 92, ReLU, no batch-norm, dropout 0.578647, lr 7.2e-5, batch 135, patience 44
-- Figures: Fig. 6 (5-output pair plot coloured valid/invalid), objective correlation heat-map, Fig. 4 material breakdown, Fig. 8/9 parity plots (train and validation, all 10 outputs), Table 3 physical validation.
+- Sec. 5 counts: 3419 of 4118 fail at least one SF ≥ 1 check. On the repo data (`Analysis.ipynb` output): both fail 1966, SF1 only 1272, SF3 only 182, valid 626; non-dominated in the 5-objective subset 76.
+- Sec. 5.2 case studies (verified against the pinned data while writing this plan): index 3853 (Ti) 2.84 kg, SF1 1.29, SF3 1.073; index 2108 (steel) 22.83 kg, SF1 0.0926; index 857 (Ti) 1.60 kg, SF1 2.416, SF3 2.986.
+- Paper figures to compare against: Fig. 4 material breakdown, Fig. 5 mesh convergence, Fig. 6 performance pair plot, Fig. 7 case-study frames, Fig. 8 and Fig. 9 AutoML parity plots (train and validation, 10 outputs). Their page numbers go in `PAPER_FIGURE_PAGES`, filled in during Task 2 by rendering the PDF.
 
 ## Design decisions
 
-1. **Why FRAMED.** It is the only public, peer-reviewed tube-parametric frame dataset found: a two-wheeler,
-   tubular, FE-labelled with physical validation, and published with code and baselines. No public motorcycle
-   sub-frame dataset exists (searched: NAFEMS, Zenodo/Figshare/HF, SAE, arXiv). NAFEMS publishes solver
-   verification cases, not design-space datasets. CarHoods10k (Honda Research Institute / OSU) is the fallback
-   if a second dataset is wanted later; it is not tubular.
-2. **Preprocessing follows the authors' `Analysis.ipynb`:** X = first 39 columns of `all_structural_data_oh.csv`;
-   Y = the 10 output columns; `abs()` on the seven displacement/rotation columns and mass. The repo has 4047
-   rows against the paper's 4118, so reproduction tolerances allow for that.
-3. **Table 4 protocol (inferred, the paper's AutoML code is not in the repo):** StandardScaler on X and on Y,
-   fitted per training fold. R² = uniform mean over the 10 standardised targets; MAE and MSE averaged the same
-   way; 10 repeats × 5-fold `KFold(shuffle=True)`. The paper's MSE (0.995 at R² 0.605) is inconsistent with unit-variance
-   targets, so **R² and MAE gate the reproduction and MSE is only reported**. The write-up must say so.
-4. **Reproduction acceptance:** each baseline's R² within ±0.05 of Table 4, and the ranking
-   AutoML ≥ XGBoost > NN > DT > KNN preserved. Anything outside this is reported as a discrepancy, never tuned away.
-5. **"My model" = this project's surrogate methodology on FRAMED's data:** physics-informed features from beam
-   theory (tube A, I, J, E·I, analytic mass prior), log target transforms, GP with 95 % CI, deep ensemble with
-   CI, physics-guided MLP (residual on the analytic prior), plus XGBoost and AutoGluon on the same physics
-   features so the gain from features is separated from the gain from the model.
-6. **Same folds for everything:** every model in Tasks 3 and 5 runs on the identical `fold_indices(seed=42)`
-   splits, so all comparisons with Table 4 are paired.
-7. **Analytical baseline for speedup (CLAUDE.md):** `analytic_mass_prior` plus beam-theory tube stiffness is the
-   in-repo analytical baseline for latency. Speedup against SolidWorks is projected from
-   `config.NOMINAL_INDUSTRIAL_FE_SECONDS` (180 s) and labelled as nominal, since the paper gives no run time.
-8. **Optimisation implements the paper's Future Work (Sec. 8):** constrained optimisation with the surrogate.
-   Per the paper's warning (Sec. 5.2.3), rider-fit geometry is frozen to a reference frame and only tube ODs,
-   thicknesses and material vary. **No SolidWorks re-check is possible here.** Optimum designs are instead
-   checked with (a) the CI lower bound on SF and (b) distance to the nearest simulated FRAMED design, and both
-   are reported as such.
-9. **Data handling (CLAUDE.md):** downloaded files go to `data/external/framed/` (git-ignored by the existing
-   `data/*.csv` rule plus a new `data/external/` line). They are only ever inspected through the loaders or short
-   Python commands, never opened raw.
-10. **Guardrails on all FRAMED predictions:** mass > 0, displacement magnitudes ≥ 0, SF clipped to [0, 20],
-    finite outputs; inputs outside the training [min, max] are clipped and flagged.
+1. **FRAMED** is the only peer-reviewed, public, tube-parametric two-wheeler frame dataset found that comes with FE
+   labels, physical validation, code and published baselines. NAFEMS publishes solver verification cases, not
+   design-space datasets.
+2. **Preprocessing follows the authors' `Analysis.ipynb`:** X = first 39 columns; Y = 10 outputs; `abs()` on the
+   seven displacement/rotation columns and mass.
+3. **Table 4 protocol (inferred; the AutoML code is not in the repo):** StandardScaler on X and Y fitted per training
+   fold; R², MSE and MAE are uniform means over the 10 standardised targets; 10 repeats × 5-fold `KFold(shuffle=True)`.
+   The paper's MSE does not fit its R² for unit-variance targets, so **R² and MAE decide whether the reproduction
+   passes; MSE is reported only.**
+4. **Reproduction passes** when each baseline is within ±0.05 R² of Table 4 and the ranking
+   AutoML ≥ XGBoost > NN > DT > KNN holds. Misses are reported as discrepancies, never tuned away.
+5. **Figure comparison:** our Plotly figure goes side by side with the paper's figure page rendered from the PDF
+   (PyMuPDF at 150 dpi). Rendered paper pages stay **local only** (`reports/framed/paper_pages/`, git-ignored)
+   unless the arXiv licence permits reuse; the published report then cites "Fig. N in [1]" with our version plus
+   the numeric comparison. Where the paper prints numbers (tables, case studies, counts), the comparison is a
+   numeric table with absolute and % deviation.
+6. **OptiStruct cross-check.** We have OptiStruct, not SolidWorks, so we build an **independent 3-D beam model**
+   (CBEAM, PBEAML TUBE/ROD, MAT1 from Table 2, 3 subcases). It reproduces the paper's load cases, and stays a
+   beam model by intent (ponytail: a solid model would need the authors' CAD template, which is not public).
+   - **Geometry check first:** frame-node coordinates are rebuilt from the 18 BikeCAD geometry parameters.
+     Because mass depends only on geometry, OptiStruct mass vs FRAMED mass is the proof that the geometry is
+     right. Gate: median |error| ≤ 5 %.
+   - **Solver cross-check:** OptiStruct is run on a stratified sample of FRAMED designs, and displacements and SF are
+     compared with SolidWorks. The expected and reported outcome: displacements correlate strongly; SF differs
+     systematically, because the paper says its SF captures junction stress singularities (Sec. 3.5) and a beam
+     model has no SCF.
+   - **Verifying optimised designs:** each optimised frame and its reference frame are both solved in
+     OptiStruct, and the claim is made on the **ratio** (mass saving at equal or better stiffness and SF). A
+     systematic beam-vs-solid bias cancels in a ratio.
+7. **"My model":** this project's method on FRAMED's data. That means beam-theory features (A, I, J, EI, GJ, an
+   analytic mass prior), log target transforms, a GP with 95 % CI, a deep ensemble with CI and a physics-guided
+   MLP, plus XGBoost and AutoGluon on the same features, which separates the gain from features from the gain
+   from the model. All of them use the **same folds** as the reproduction, compared with a paired Wilcoxon test.
+8. **Optional multi-fidelity step (Task 7), run only if Task 5 shows Pearson r ≥ 0.9 on displacements:** OptiStruct
+   beam results for all 4047 designs become a low-fidelity input feature or prior, the way the V1 hand calc is used.
+9. **Optimisation implements the paper's Future Work (Sec. 8)** on reference frame 3853 (Ti road frame, 2.84 kg).
+   Rider-fit geometry is frozen (the paper warns that shrinking the frame trivially "optimises" it, Sec. 5.2.3).
+   The variables are the OD and wall thickness of TT, DT, ST, SS and CS; the objectives are min mass and min in-plane
+   dropout deflection; the constraints are SF1, SF3 ≥ 1.0 on the 95 % CI lower bound and transverse BB deflection no
+   worse than the reference.
+10. **Guardrails on every FRAMED prediction:** mass > 0, displacement magnitudes ≥ 0, SF in [0, 20], finite outputs.
+    Inputs outside the training range are clipped and flagged.
+11. **Speedup (CLAUDE.md):** measured against two baselines, (a) the analytic mass/stiffness calculation and
+    (b) **the measured OptiStruct wall time per design**, which replaces the old nominal 180 s.
+12. **Report:** a single static HTML page plus a Markdown twin, built with `impeccable:impeccable` in **Read mode**
+    (the visitor needs to understand an engineering study). It follows impeccable's flow: `impeccable context` →
+    `init` (PRODUCT.md) → new-work for the report surface → `craft-floor.md` before any edit → verify with
+    `impeccable shot` at desktop and phone widths.
 
 ## Global Constraints
 
-- Run Python as `.\.venv\Scripts\python.exe` (Windows). In a Linux container with no `.venv`, `python -m` is the
-  equivalent, after `pip install -r requirements.txt`.
-- Never read raw files in `data/` or `models/`; use loaders or short Python commands.
-- Report R², MAE, max relative error (%) and speedup against the analytical baseline for every surrogate.
-- Max relative error on displacement-type targets uses a denominator floor of 5 % of that target's training
-  median, to stop near-zero values blowing it up. Record the floor in the metrics JSON.
-- `.\.venv\Scripts\python.exe -m pytest` passes before each task is committed.
-- Tests must not need the network: logic tests use an in-memory fixture; tests against the real data are marked
-  `@pytest.mark.skipif(not FRAMED_CSV.exists(), ...)`.
-- `autogluon` is optional: `import` inside a `try`, and a missing package skips that model with a logged note.
-- Credit FRAMED (MIT, copyright 2022 Lyleregenwetter) in the README and report; no FRAMED files are committed.
-- Do not commit or push `prompts/` content.
+- Run all Python with `.\.venv\Scripts\python.exe`. Never read raw files in `data/` or `models/`; use loaders or short Python commands.
+- Report R², MAE, max relative error (%) and speedup for every surrogate. Max relative error on displacement targets uses a denominator floor of 5 % of the training median; record the floor.
+- Run `.\.venv\Scripts\python.exe -m pytest` before every commit. Tests needing data or OptiStruct are `skipif`-marked, so the suite still passes on a machine without them.
+- `n_jobs` defaults to `os.cpu_count() - 1`. Heavy artefacts go to `models/framed/`, `data/external/framed/` and `runs/optistruct/`, all git-ignored.
+- OptiStruct path comes from env var `OPTISTRUCT_EXE`, defaulting to `C:\Program Files\Altair\2026\hwsolvers\scripts\optistruct.bat`. Verify the path in Task 0; never hard-code it anywhere else.
+- AutoGluon is optional (`try` import). Missing means its rows read "not run".
+- Credit FRAMED (MIT, copyright 2022 Lyleregenwetter) and the paper in the README and report; commit no FRAMED data files.
+- Never commit or push `prompts/`. Delete nothing in Task 0 without the user's explicit OK on the listed items.
 
 ## Review Focus
 
-1. **Thickness ≥ OD/2** (FRAMED samples thicknesses up to 10 mm on stays as thin as 2.35 mm OD): section
-   properties must treat these tubes as solid rods, not return negative inner diameters. Tested in Task 4.
-2. **Heavy-tailed outputs** (|Sim 1 dropout Y| up to 1.386 m against a 0.05 m std): log transforms must stay
-   finite for zero values, and metrics must be reported on both standardised and physical scales. Tested in Task 5.
-3. **Generated-frame set includes designs outside the original ranges:** the OOD evaluation must report the
-   extrapolation fraction and must not silently clip it away. Tested in Task 6.
-4. **Material one-hot rows that are not exactly one-hot** (from the optimiser or app sliders) must be rejected
-   or snapped, not passed to the model. Tested in Task 7.
-5. **AutoGluon absent or slow:** the pipeline must finish and the report must mark AutoML rows as "not run"
-   instead of crashing or leaving blanks. Tested in Task 3.
+1. **Thickness ≥ OD/2** (stays as thin as 2.35 mm OD with walls up to 10 mm): section properties and the PBEAML deck must switch to a solid ROD, not write a negative inner diameter. Tested in Task 3 and Task 5.
+2. **Heavy-tailed outputs** (|Sim 1 dropout Y| up to 1.386 m against a 0.05 m std): log transforms must stay finite at 0, and metrics are reported on both the standardised and the physical scale. Tested in Task 6.
+3. **OptiStruct failures** (singular stiffness, licence errors, a missing `.pch`): the runner must record a status per design and continue, and comparisons exclude failed runs with the count reported. Tested in Task 5.
+4. **Extrapolated generated frames:** the OOD evaluation reports the extrapolation fraction and does not clip it away. Tested in Task 8.
+5. **Non-one-hot material rows** from the optimiser or sliders are rejected or snapped. Tested in Tasks 3 and 9.
 
 ---
 
@@ -122,210 +141,222 @@ number is the paper (text copy used for this plan: Regenwetter et al., CAD prepr
 
 | File | Responsibility |
 |---|---|
-| `src/framed/__init__.py` | empty |
-| `src/framed/config.py` | paths, pinned URL/commit/sha256, column lists, Table 2 material properties, Table 4 numbers, paper hyperparameters |
-| `src/framed/data.py` | download + checksum, load original/generated, fold indices |
+| `src/framed/config.py` | paths, pinned URLs, sha256s, column lists, `OPTISTRUCT_EXE` |
+| `src/framed/paper_reference.py` | every paper number and figure page, with its source location |
+| `src/framed/data.py` | fetch and checksum data and PDF, loaders, fold indices |
 | `src/framed/paper_stats.py` | feasibility counts, non-dominated set, correlations |
-| `src/framed/baselines.py` | paper models with the paper's hyperparameters, CV protocol, metrics |
-| `src/framed/physics_features.py` | tube section properties, material mapping, analytic mass prior |
-| `src/framed/surrogates.py` | improved models, target transforms, guardrails, UQ |
-| `src/framed/optimize.py` | `FramedProblem` for the shared optimisers, reference-frame study |
-| `src/framed/figures.py` | Plotly figures (reuses `src.plots._layout` and `SERIES`) |
-| `src/framed/run.py` | CLI: `python -m src.framed.run [--fast] [--skip-autogluon]`, writes `models/framed/*.json`, `reports/framed/*` |
+| `src/framed/baselines.py` | paper models, CV protocol, reproduction table |
+| `src/framed/physics_features.py` | section properties, materials, analytic mass prior |
+| `src/framed/geometry.py` | 18 geometry parameters → 3-D node coordinates and tube list |
+| `src/framed/optistruct.py` | `.fem` deck writer, batch runner, `.pch` parser |
+| `src/framed/surrogates.py` | improved models, transforms, guardrails, UQ, OOD evaluation, latency |
+| `src/framed/optimize.py` | `FramedProblem`, study runner, OptiStruct verification |
+| `src/framed/figures.py` | Plotly figures; paper-page renderer |
+| `src/framed/report.py` | builds `reports/framed/index.html` and `reports/framed_benchmark.md` |
+| `src/framed/run.py` | CLI `--stage {fetch,stats,baselines,optistruct,ours,multifidelity,ood,optimize,report,all} [--fast]` |
 | `tests/test_framed.py` | all FRAMED tests |
-| `app.py` | new tab 5, "FRAMED benchmark" |
-| `README.md`, `run_pipeline.ps1`, `requirements.txt`, `.gitignore` | docs, pipeline step, `xgboost`, `data/external/` |
+| `app.py` | tab 5, "FRAMED benchmark" (reads artefacts only) |
 
 ---
 
-### Task 1: Data acquisition and loading
+### Task 0: Local setup and folder cleanup (local session, no code)
 
-**Files:**
-- Create: `src/framed/__init__.py`, `src/framed/config.py`, `src/framed/data.py`, `tests/test_framed.py`
-- Modify: `.gitignore` (add `data/external/`), `requirements.txt` (add `xgboost`, pinned to the version installed)
+- [ ] **Step 1: Sync.** Run `git status`, `git stash list` and `git worktree list`, then `git fetch origin`, `git switch claude/optimistic-meitner-vvd4ne` and `git pull`. If the worktree `.claude\worktrees\admiring-ishizaka-412344` still holds uncommitted `prompts/PROMPT_HISTORY.md` edits, **ask the user** whether to keep or discard them before touching that worktree.
+- [ ] **Step 2: Inventory.** Run `Get-ChildItem -Force -Recurse -Directory | ...` (top 2 levels, with sizes) and list the cleanup candidates in a table: `__pycache__`, `.pytest_cache`, `logs\`, stale worktrees, stray files not tracked by git and not ignored (`git status --porcelain --ignored`), and old V1 outputs that `run_pipeline.ps1` can regenerate. **Never list** `.venv`, `.git`, `src`, `tests`, `app.py`, docs, or `prompts\` unless the user names it.
+- [ ] **Step 3: Ask the user** to approve the table, then delete only the approved items. Report freed space.
+- [ ] **Step 4: Environment.** Run `.\.venv\Scripts\python.exe -m pip install -r requirements.txt xgboost PyMuPDF psutil`, then try `pip install autogluon.tabular` and record success or failure. If AutoGluon needs a different Python, create `.venv-ag` and record that in `models/framed/env.json`.
+- [ ] **Step 5: Baseline check.** Run `.\.venv\Scripts\python.exe -m pytest`. Expected: the 26 V1 tests pass. Record CPU model, cores, RAM, free SSD space, Python version and OptiStruct version (`& $env:OPTISTRUCT_EXE -v`, or locate it under `C:\Program Files\Altair\2026`) in `models/framed/env.json`.
+- [ ] **Step 6:** Commit `.gitignore` (add `data/external/`, `runs/`, `reports/framed/paper_pages/`) and `requirements.txt`, with the message `chore: local setup for FRAMED benchmark`.
 
-**Interfaces:**
-- Produces:
-  - `config.FRAMED_DIR = DATA_DIR / "external" / "framed"`, `config.FILES: dict[str, tuple[str, str]]` (name → (repo path, sha256))
-  - `config.X_COLS: list[str]` (39), `config.Y_COLS: list[str]` (10), `config.ABS_COLS: list[str]` (8, as in `Analysis.ipynb`)
-  - `fetch_framed(dest: Path = config.FRAMED_DIR, force: bool = False) -> dict[str, Path]`: downloads `https://raw.githubusercontent.com/Lyleregenwetter/FRAMED/<commit>/<file>` and falls back to `git clone --depth 1` when raw access is blocked. Raises `ValueError` on a sha256 mismatch.
-  - `load_framed(kind: Literal["original", "generated"] = "original") -> tuple[pd.DataFrame, pd.DataFrame]`, returning (X, Y)
-  - `fold_indices(n: int, n_folds: int = 5, n_repeats: int = 10, seed: int = 42) -> list[tuple[np.ndarray, np.ndarray]]`
+### Task 1: Data and paper acquisition
 
-- [ ] **Step 1: Write failing tests**
-  - `test_sha_mismatch_raises`: write a temporary file with the wrong content, call `_verify(path, "00…")`, expect `ValueError`.
-  - `test_load_shapes` (skipif no data): original X `(4047, 39)`, Y `(4047, 10)`; generated X `(10805, 39)`; no NaN; `(Y[ABS_COLS] >= 0).all().all()`; the material one-hot row sum is 1.
-  - `test_fold_indices`: 50 splits for (5, 10); the test sets of each repeat partition `range(n)`; deterministic for a given seed.
-- [ ] **Step 2:** Run `.\.venv\Scripts\python.exe -m pytest tests/test_framed.py -v`. Expected: FAIL (module not found).
-- [ ] **Step 3:** Implement `config.py` and `data.py` with the signatures above. Use `urllib.request` from the standard library; no new dependency.
-- [ ] **Step 4:** Run `.\.venv\Scripts\python.exe -c "from src.framed.data import fetch_framed; fetch_framed()"`, then pytest. Expected: PASS, data tests not skipped.
-- [ ] **Step 5:** Commit: `feat(framed): pinned, checksummed FRAMED dataset loader`.
+**Files:** Create `src/framed/__init__.py`, `config.py`, `paper_reference.py`, `data.py`, `tests/test_framed.py`
 
-### Task 2: Reproduce the paper's dataset statistics and figures
+**Interfaces (produces):**
+- `fetch_framed(dest: Path = config.FRAMED_DIR, force: bool = False) -> dict[str, Path]`: downloads the data files from `https://raw.githubusercontent.com/Lyleregenwetter/FRAMED/<commit>/<file>` and the paper PDF, verifies the sha256, and raises `ValueError` on a mismatch. Record the PDF's sha256 on first download.
+- `load_framed(kind: Literal["original", "generated"] = "original") -> tuple[pd.DataFrame, pd.DataFrame]`, returning (X, Y)
+- `fold_indices(n: int, n_folds: int = 5, n_repeats: int = 10, seed: int = 42) -> list[tuple[np.ndarray, np.ndarray]]`
 
-**Files:**
-- Create: `src/framed/paper_stats.py`, `src/framed/figures.py`
-- Test: `tests/test_framed.py`
+- [ ] **Step 1: Tests.**
+  - `test_sha_mismatch_raises`
+  - `test_load_shapes`: original X `(4047, 39)` and Y `(4047, 10)`; generated X `(10805, 39)`; no NaN; ABS columns ≥ 0; one-hot row sum 1
+  - `test_fold_indices`: 50 splits, each repeat partitions the rows, deterministic
+  - `test_case_study_frames_match_paper`: the three Sec. 5.2 frames match the values in `paper_reference` (mass ±0.005 kg, SF ±0.005)
+- [ ] **Step 2:** Run the tests. Expected: FAIL. **Step 3:** Implement with the standard library's `urllib`. **Step 4:** Run `python -m src.framed.run --stage fetch`, then pytest. Expected: PASS. **Step 5:** Commit `feat(framed): pinned dataset, paper and reference values`.
 
-**Interfaces:**
-- Consumes: `load_framed`, `config.Y_COLS`
-- Produces:
-  - `feasibility_counts(Y: pd.DataFrame) -> dict[str, int]` with keys `both_fail, sf1_only, sf3_only, valid`
-  - `non_dominated_mask(Y5: np.ndarray, sense: np.ndarray) -> np.ndarray` (objective sense per column: −1 = minimise, +1 = maximise); 5 objectives: |Sim 1 dropout Y|, |Sim 2 BB Z|, |Sim 3 BB X rot|, Sim 1 SF (maximise), mass
-  - `figures.fig_performance_pairs(Y) -> go.Figure` (Fig. 6, Plotly `splom`), `fig_objective_correlation(Y)`, `fig_material_breakdown(X)`, `fig_physical_validation()` (Table 3 constants in `config.PAPER_TABLE3`, captioned "values from Regenwetter et al., Table 3"), `fig_parity_grid(Y_true, Y_pred_train, Y_pred_val, title)` (10 subplots, Fig. 8/9 style)
+### Task 2: Reproduce the dataset statistics and figures, then compare with the paper
 
-- [ ] **Step 1: Write failing tests**
-  - `test_feasibility_counts_logic`: a 4-row fixture with one row per class gives `{both_fail:1, sf1_only:1, sf3_only:1, valid:1}`.
-  - `test_feasibility_matches_paper` (skipif no data): each count within ±2 of 1966 / 1272 / 182 / 626.
-  - `test_non_dominated_matches_paper` (skipif no data): `mask.sum()` within 76 ± 2.
-  - `test_case_study_frames_match_paper` (skipif no data, Sec. 5.2): index 3853 has mass 2.84, SF1 1.29, SF3 1.073 (paper: 2.84 kg, SF 1.3/1.1); 2108 has mass 22.83 and SF1 < 0.1; 857 has mass 1.60, SF1 2.416, SF3 2.986 (paper: 1.6 kg, 2.42/2.99). All three were verified against the pinned data while writing this plan.
-  - `test_figures_build`: each figure function returns a `go.Figure`; `fig_parity_grid` has 20 scatter traces.
-- [ ] **Step 2:** Run the tests. Expected: FAIL.
-- [ ] **Step 3:** Implement. Use a vectorised dominance check on 4047 points; an O(n²) NumPy broadcast in chunks of 512 is fine.
-- [ ] **Step 4:** Run pytest. Expected: PASS.
-- [ ] **Step 5:** Commit: `feat(framed): reproduce FRAMED dataset statistics and figures`.
+**Files:** Create `src/framed/paper_stats.py`, `src/framed/figures.py`
 
-### Task 3: Reproduce Table 4 (paper baselines)
+**Interfaces (produces):**
+- `feasibility_counts(Y) -> dict[str, int]` (`both_fail, sf1_only, sf3_only, valid`)
+- `non_dominated_mask(F: np.ndarray, sense: np.ndarray) -> np.ndarray`, with sense −1 = minimise and +1 = maximise
+- `render_paper_pages(pdf: Path, pages: list[int], out: Path, dpi: int = 150) -> list[Path]`
+- Figures (each returns `go.Figure`): `fig_material_breakdown`, `fig_performance_pairs` (Fig. 6 as a splom, valid vs invalid, with the 3 case-study frames marked), `fig_objective_correlation`, `fig_physical_validation` (Table 3)
+- `stats_comparison() -> pd.DataFrame` with columns quantity, paper, ours, abs dev, % dev
 
-**Files:**
-- Create: `src/framed/baselines.py`
-- Test: `tests/test_framed.py`
+- [ ] **Step 1: Tests.**
+  - `test_feasibility_counts_logic`: a 4-row fixture
+  - `test_feasibility_matches_notebook`: each count within ±2 of 1966 / 1272 / 182 / 626
+  - `test_non_dominated_matches_paper`: 76 ± 2
+  - `test_figures_build`
+- [ ] **Step 2–4:** red → implement → green. Render the PDF pages once, find each figure's page, and fill in `PAPER_FIGURE_PAGES`.
+- [ ] **Step 5:** Commit `feat(framed): dataset statistics and paper-figure comparison`.
 
-**Interfaces:**
-- Consumes: `load_framed`, `fold_indices`
-- Produces:
-  - `paper_models(seed: int) -> dict[str, Callable[[], Regressor]]` with keys `decision_tree, knn, xgboost, neural_net, autogluon`. Hyperparameters are copied from "Paper numbers to reproduce". `autogluon` is present only if it imports.
-  - `Regressor` protocol: `fit(X: np.ndarray, Y: np.ndarray) -> self`, `predict(X) -> np.ndarray` (multi-output; DT and KNN are native; XGBoost uses `multi_strategy="one_output_per_tree"` with a 10 % inner validation split for early stopping; the NN is a small torch module; AutoGluon is one `TabularPredictor` per target, `presets="medium_quality"`, `time_limit` per target from CLI)
-  - `cross_validate(factory, X, Y, folds) -> dict` returning `{"r2", "mse", "mae"}` (mean ± std over folds, standardised scale), plus `per_target` with R², MAE and max relative error (%) on the physical scale, and `oof_pred: np.ndarray` (out-of-fold predictions from repeat 0, for parity plots)
-  - `reproduction_table(results: dict) -> pd.DataFrame` with columns paper R², ours R², ΔR², paper MAE, ours MAE, within_tolerance
+### Task 3: Physics features and analytical baseline
 
-- [ ] **Step 1: Write failing tests**
-  - `test_cv_metric_on_perfect_model`: a model that returns the standardised truth gives R² = 1 and MAE = 0.
-  - `test_paper_hyperparameters`: `paper_models(0)["knn"]().get_params()` has `n_neighbors == 70` and `weights == "distance"`; the DT has `max_depth == 7` and `min_samples_leaf == 11`.
-  - `test_autogluon_missing_is_skipped`: monkeypatch the import to fail; `"autogluon" not in paper_models(0)` and `run.py` writes `"status": "not run"` for it.
-  - `test_reproduction_within_tolerance` (skipif no data, marked `slow`): KNN and DT on 1 × 5 folds are within ±0.05 R² of 0.306 and 0.440.
-- [ ] **Step 2:** Run the tests. Expected: FAIL.
-- [ ] **Step 3:** Implement. Register the `slow` marker in `pytest.ini`.
-- [ ] **Step 4:** Run `.\.venv\Scripts\python.exe -m src.framed.run --stage baselines` (10 × 5 folds; AutoGluon 1 × 5 folds with `--ag-time 60` s per target). Expected: `models/framed/reproduction.json`, and the table prints with the ranking check. Record any discrepancy in the JSON's `notes`.
-- [ ] **Step 5:** Run pytest, then commit: `feat(framed): reproduce Table 4 baselines with the paper's hyperparameters`.
+**Files:** Create `src/framed/physics_features.py`
 
-### Task 4: Physics-informed features and analytical baseline
+**Interfaces (produces):**
+- `section_properties(od, t) -> (A, I, J)`: SI units, with `t` clipped to `od/2`
+- `material_props(X) -> DataFrame[E, G, rho, sigma_y]`: raises `ValueError` for a non-one-hot row
+- `analytic_mass_prior(X) -> np.ndarray` = Σ ρ·A·L over tube lengths from `geometry.tube_lengths` (Task 5). Until Task 5 lands, it uses only the five explicit lengths (ST, HT, DT, CS, BB), noted as `shortcut:` in a comment.
+- `add_physics_features(X) -> DataFrame`: X plus per-tube `A_*`, `EI_*`, `GJ_*`, plus `mass_prior` and `sigma_y`
 
-**Files:**
-- Create: `src/framed/physics_features.py`
-- Test: `tests/test_framed.py`
+- [ ] **Step 1: Tests.**
+  - `test_hollow_tube_area`: OD 28.6 mm, t 0.9 mm gives A = 78.32 mm² (rel 1e-4) and I = π/64·(28.6⁴ − 26.8⁴) mm⁴
+  - `test_solid_rod_when_thick`: OD 2.35 mm, t 10 mm gives a solid rod, finite and > 0
+  - `test_material_props_rejects_bad_onehot`
+- [ ] **Step 2–4:** red → implement → green. **Step 5:** Commit `feat(framed): beam-theory features`.
 
-**Interfaces:**
-- Consumes: `config.MATERIALS` (Table 2: E 205/69/105 GPa, ν 0.285/0.330/0.310, ρ 7850/2700/4429 kg/m³, σy 460/275/827 MPa for steel/Al/Ti)
-- Produces:
-  - `section_properties(od: np.ndarray, t: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]` returning A, I, J in SI units; `t` is clipped to `od/2` (a solid rod)
-  - `material_props(X: pd.DataFrame) -> pd.DataFrame` with columns `E, rho, sigma_y`; raises `ValueError` when the one-hot row sum is not 1
-  - `analytic_mass_prior(X: pd.DataFrame) -> np.ndarray` = Σ ρ·A·L over the tubes with an explicit length (`ST, HT, DT, CS, BB`) plus top-tube and seat-stay lengths from the frame-geometry relations (derive from `Stack`, `ST Angle`, `HT Angle`, `ST Length`, `CS Length`, `BB Drop`; document the formula in one comment line)
-  - `add_physics_features(X: pd.DataFrame) -> pd.DataFrame`: X plus, per tube, `A_*`, `EI_*`, `GJ_*`, slenderness `L/OD` where L is known, plus `mass_prior`, `sigma_y`
+### Task 4: Reproduce Table 4 locally (the paper's models)
 
-- [ ] **Step 1: Write failing tests**
-  - `test_hollow_tube_area`: OD 28.6 mm, t 0.9 mm gives A = π/4·(28.6² − 26.8²) mm² = 78.32 mm² (rel 1e-4), and I = π/64·(28.6⁴ − 26.8⁴) mm⁴.
-  - `test_solid_rod_when_thick`: OD 2.35 mm, t 10 mm gives A = π/4·2.35² mm², all finite and positive.
-  - `test_material_props_rejects_bad_onehot`: row `[0.5, 0.5, 0]` raises `ValueError`.
-  - `test_mass_prior_tracks_mass` (skipif no data): Pearson r(mass_prior, Model Mass) > 0.9, and the median ratio is within 0.7–1.3.
-- [ ] **Step 2:** Run the tests. Expected: FAIL.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run pytest. Expected: PASS. If the mass-prior correlation gate fails, report the observed r rather than weaken the test without asking.
-- [ ] **Step 5:** Commit: `feat(framed): beam-theory features and analytic mass prior`.
+**Files:** Create `src/framed/baselines.py`; modify `pytest.ini` (`slow` marker)
 
-### Task 5: Improved surrogates with uncertainty (the "show the improvement" step)
+**Interfaces (produces):**
+- `paper_models(seed) -> dict[str, Callable[[], Regressor]]` with keys `decision_tree, knn, xgboost, neural_net, autogluon?`, using the hyperparameters from `paper_reference`
+- `Regressor`: `fit(X, Y) -> self`, `predict(X) -> ndarray` (multi-output)
+- `cross_validate(factory, X, Y, folds) -> dict`: `r2, mse, mae` (mean ± std, standardised scale), `per_target` (R², MAE, max relative error % on the physical scale), `fold_scores` (list of 50), `oof_pred` (repeat 0)
+- `reproduction_table(results) -> DataFrame`: columns paper R², ours R², ΔR², paper MAE, ours MAE, pass
+- `fig_parity_grid(Y, oof, title)`: 10 panels, Fig. 9 layout; `fig_table4_comparison(repro, ours=None)`
 
-**Files:**
-- Create: `src/framed/surrogates.py`
-- Test: `tests/test_framed.py`
+- [ ] **Step 1: Tests.**
+  - `test_cv_metric_on_perfect_model`: R² 1, MAE 0
+  - `test_paper_hyperparameters`: KNN k = 70 and distance weights; DT depth 7 and leaf 11
+  - `test_autogluon_missing_is_skipped`
+  - `test_reproduction_knn_dt` (`slow`): 1 × 5 folds within ±0.05 of 0.306 and 0.440
+- [ ] **Step 2–3:** red → implement.
+- [ ] **Step 4: Full local run.** `python -m src.framed.run --stage baselines` runs 10 × 5 folds for DT, KNN, XGB and NN, and AutoGluon on 1 × 5 folds with `presets="medium_quality"` and `time_limit=120` s per target. It writes `models/framed/reproduction.json` (with wall time and hardware) and the parity figure for the best model, next to rendered paper Fig. 9.
+- [ ] **Step 5:** Run pytest, then commit `feat(framed): reproduce Table 4 locally`.
+- [ ] 🔍 **Gate A, reviewer subagent.** Use superpowers:requesting-code-review on Tasks 1–4. Brief: check the protocol against decision 3, that the hyperparameters match Tables 6–9, data leakage (scalers per fold), and that the reproduction table's pass/fail is honest. Fix the findings, then rerun pytest.
 
-**Interfaces:**
-- Consumes: `add_physics_features`, `analytic_mass_prior`, `cross_validate`, `fold_indices`, `paper_models`
-- Produces:
-  - `transform_targets(Y: np.ndarray) -> np.ndarray` and `inverse_transform_targets(T) -> np.ndarray`: `log(y + eps_j)` per column, where `eps_j` = 1 % of the column's training median; mass and SF are logged too
-  - `guard_framed(Y: np.ndarray) -> np.ndarray`, applying decision 10, and `clip_framed_inputs(X, lo, hi) -> tuple[np.ndarray, np.ndarray]` returning (clipped X, extrapolation flag)
-  - `our_models(seed: int) -> dict[str, Callable[[], Regressor]]` with keys `xgboost_phys`, `autogluon_phys` (optional), `gp_phys` (sklearn GP, ARD Matern 2.5 + White, fitted on the 20 highest-|corr| features to bound cost), `deep_ensemble_phys` (5 MLPs, 3×128, SiLU), `pg_mlp` (predicts log(mass/mass_prior) for mass, physics features for the rest). Every model wraps transform → fit → inverse → `guard_framed`.
-  - UQ models expose `predict_interval(X, level=0.95) -> tuple[np.ndarray, np.ndarray, np.ndarray]` (lo, mean, hi)
-  - `latency_report(models, X) -> dict` with ms per design (single, batch 1000) for each model and for the analytical baseline, speedup vs analytical, and projected speedup vs 180 s
+### Task 5: OptiStruct beam model and solver cross-check
 
-- [ ] **Step 1: Write failing tests**
-  - `test_transform_roundtrip`: random positive Y including zeros round-trips to 1e-9.
-  - `test_guard_framed`: an input containing −1 mass, NaN and SF 50 gives mass > 0, finite values and SF ≤ 20.
-  - `test_interval_contains_mean`: for `deep_ensemble_phys` trained on a 200-row fixture, `lo <= mean <= hi` everywhere.
-  - `test_improved_beats_raw_xgboost` (skipif no data, `slow`): on 1 × 5 identical folds, `xgboost_phys` mean R² ≥ `xgboost` mean R².
-- [ ] **Step 2:** Run the tests. Expected: FAIL.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run `.\.venv\Scripts\python.exe -m src.framed.run --stage ours`. Expected output in `models/framed/ours.json`: the same metrics as `reproduction.json`, plus 95 % CI coverage per target for the GP and the ensemble, plus `latency_report`. The headline comparison table is paper AutoML vs best of ours, paired on folds, with a Wilcoxon signed-rank p-value over the 50 fold scores (`scipy.stats.wilcoxon`). Whatever the result, report it as measured.
-- [ ] **Step 5:** Run pytest, then commit: `feat(framed): physics-informed surrogates with UQ on FRAMED`.
+**Files:** Create `src/framed/geometry.py`, `src/framed/optistruct.py`
 
-### Task 6: Out-of-distribution test on the 10,805 generated frames (beyond the paper)
+**Interfaces (produces):**
+- `frame_nodes(x: pd.Series) -> dict[str, np.ndarray]`: 3-D coordinates (m) of BB centre, BB ends, ST top, HT top and bottom, TT and DT junctions, and the left and right dropouts and stay junctions. BikeCAD conventions: origin at the BB, x rearward-negative, y up, z lateral. Uses `Stack`, `HT Angle`, `HT Length`, `HT LX`, `HT UX`, `ST Angle`, `ST Length`, `ST UX`, `DT Length`, `CS Length`, `BB Drop`, `BB Length`, `CS F`, `SS E`, `SS Z`, `Dropout Offset`, `SSB/CSB Offset`. One comment line per derived point.
+- `tube_lengths(x) -> dict[str, float]`, also used by `analytic_mass_prior`
+- `write_deck(x: pd.Series, path: Path, elems_per_tube: int = 10) -> Path`. Writes a `.fem` with:
+  - GRID and CBEAM entries; PBEAML TUBE (`DIM1 = OD/2`, `DIM2 = OD/2 − t`) or ROD when `t ≥ OD/2`; MAT1 from Table 2
+  - three SUBCASEs built from SPC/FORCE/MOMENT per the load cases in "Source"
+  - `DISPLACEMENT(PUNCH) = ALL`, `STRESS(PUNCH) = ALL`, and a mass output (`PARAM,GRDPNT,0`, so the `.out` has total mass)
+  - bridges included as CBEAMs when `SSB_Include` / `CSB_Include` are set
+- `run_optistruct(decks: list[Path], n_parallel: int, ncpu_per_job: int = 1, timeout_s: int = 300) -> pd.DataFrame`, with columns deck, status, wall_s. Uses `subprocess`, `-nt ncpu_per_job` and a thread pool.
+- `parse_results(deck: Path) -> dict`: the 10 FRAMED outputs in FRAMED's sign and units, from `.pch` and `.out`. SF = σy / max beam von Mises per subcase.
 
-**Files:**
-- Modify: `src/framed/surrogates.py` (add a function), `src/framed/run.py`
-- Test: `tests/test_framed.py`
+- [ ] **Step 1: Tests (no OptiStruct needed).**
+  - `test_geometry_reference_frame`: for frame 3853, the ST length between nodes equals `ST Length`, the DT length equals `DT Length` (±1e-6 m), and the chain-stay length equals `CS Length`
+  - `test_deck_has_three_subcases`: on 3853, the deck contains 3 `SUBCASE` entries, a PBEAML for every tube, and no negative dimensions
+  - `test_rod_when_thick`
+  - `test_parse_pch_fixture`: a small hand-written `.pch` fixture gives known numbers
+  - `test_runner_records_failure`: a fake executable that exits 1 gives status `"failed"`, and the run continues
+- [ ] **Step 2–3:** red → implement.
+- [ ] **Step 4: Smoke run.** Write the deck for 3853, run OptiStruct, then open the deck and `.h3d` in **HyperMesh** and save two screenshots (mesh, and subcase 1 deformed) to `reports/framed/img/`. Check that the BCs and load directions look right.
+- [ ] **Step 5: Geometry gate.** Compute beam-model mass in Python (Σ ρ·A·L from `tube_lengths`) for all 4047 designs and compare it with FRAMED mass. Gate: median |error| ≤ 5 %. Confirm on 5 smoke-run designs that the OptiStruct `.out` grid-point-weight mass equals the Python mass within 0.5 %. On failure, fix `frame_nodes` and do not continue.
+- [ ] **Step 6: Cross-check.** Run the full static solve on a 300-design sample stratified by material × valid/invalid. Write `models/framed/optistruct_xcheck.json` with Pearson r, R², median ratio OptiStruct/SolidWorks and Bland–Altman bias per output, the failure count and the mean wall time per design. Figures: `fig_solver_crosscheck` (10-panel parity, OptiStruct vs SolidWorks).
+- [ ] **Step 7:** Run pytest, then commit `feat(framed): independent OptiStruct beam model and cross-check`.
 
-**Interfaces:**
-- Consumes: `load_framed("generated")`, the models from Tasks 3 and 5 refit on all 4047 originals
-- Produces: `evaluate_ood(models: dict, X_tr, Y_tr, X_gen, Y_gen) -> dict` returning, per model: R², MAE and max relative error per target; `extrapolation_fraction` (rows with any input outside the training [min, max]); the same metrics split into in-range and extrapolated rows; and CI coverage for the UQ models
+### Task 6: Improved surrogates with UQ
 
-- [ ] **Step 1: Write failing test** `test_ood_reports_extrapolation`: a fixture where 3 of 10 generated rows lie outside the range gives `extrapolation_fraction == 0.3`, with metrics present for both subsets.
-- [ ] **Step 2:** Run it. Expected: FAIL.
-- [ ] **Step 3:** Implement. Do not clip away the extrapolated rows; evaluate them as they are, flagged.
-- [ ] **Step 4:** Run `python -m src.framed.run --stage ood` to write `models/framed/ood.json`, then pytest. Expected: PASS.
-- [ ] **Step 5:** Commit: `feat(framed): OOD generalisation test on generated frames`.
+**Files:** Create `src/framed/surrogates.py`
 
-### Task 7: Constrained lightweighting optimisation (the paper's Future Work)
+**Interfaces (produces):**
+- `transform_targets(Y, eps) -> T` and `inverse_transform_targets(T, eps) -> Y`, with `log(y + eps_j)` and `eps_j` = 1 % of the training median
+- `guard_framed(Y) -> Y` and `clip_framed_inputs(X, lo, hi) -> (X, flag)`
+- `our_models(seed) -> dict` with keys:
+  - `xgboost_phys`; `autogluon_phys` (optional)
+  - `gp_phys`: ARD Matern 2.5 + White on the 20 highest-|corr| features
+  - `deep_ensemble_phys`: 5 × MLP 3×128 SiLU
+  - `pg_mlp`: predicts log(mass/mass_prior) for mass
+- UQ models expose `predict_interval(X, level=0.95) -> (lo, mean, hi)`
+- `latency_report(models, X, optistruct_wall_s) -> dict`: ms per design (single and batch of 1000), speedup vs analytic, speedup vs measured OptiStruct
 
-**Files:**
-- Create: `src/framed/optimize.py`
-- Test: `tests/test_framed.py`
+- [ ] **Step 1: Tests.**
+  - `test_transform_roundtrip`
+  - `test_guard_framed`: mass −1, NaN and SF 50 become a valid output
+  - `test_interval_contains_mean`
+  - `test_improved_beats_raw_xgboost` (`slow`, 1 × 5 folds)
+- [ ] **Step 2–3:** red → implement.
+- [ ] **Step 4: Full local run.** `--stage ours` writes `models/framed/ours.json`: Table-4 metrics on the same 50 folds, per-target physical-scale metrics, 95 % CI coverage, the paired Wilcoxon test against the paper's AutoML (or its published 0.605 when AutoGluon did not run), and the latency report.
+- [ ] **Step 5:** Run pytest, then commit `feat(framed): physics-informed surrogates with UQ`.
+- [ ] 🔍 **Gate B, reviewer subagent.** Use superpowers:requesting-code-review on Tasks 5–6. Brief: whether the geometry reconstruction is plausible, BC and load fidelity against the paper's Sec. 3.3, `.pch` parsing units and signs, fair comparison on the same folds, and whether any metric is computed on transformed instead of physical values without saying so.
 
-**Interfaces:**
-- Consumes: `src.optimizer.nsga2`, `src.optimizer.parego`, `src.optimizer.knee_point`, the best UQ surrogate from Task 5
-- Produces:
-  - `class FramedProblem` with attributes `xl, xu, n_var, archive, tag, n_evals` and methods `evaluate(G) -> {"Y","F","V","cv","feasible"}` and `normalise(F)`, matching what `src/optimizer.py` expects. The reference frame is `X.loc[3853]` (paper "Example frame 1": a titanium road frame, 2.84 kg, SF3 1.073, so it is already marginal on SF3; assert its mass within 0.01 kg). Variables: OD and thickness of TT, DT, ST, SS and CS (10 variables); HT and BB stay fixed as standard interfaces. Bounds are the 1st–99th percentile of FRAMED. Material is fixed per run (steel, Al, Ti: 3 runs).
-  - Objectives: min mass, min |Sim 1 dropout Y disp.| (in-plane stiffness). Constraints: SF1 ≥ 1.0 and SF3 ≥ 1.0 on the **95 % CI lower bound** (FRAMED validity definition, made uncertainty-aware); |Sim 2 BB Z| ≤ the reference frame's value (no loss of transverse stiffness); D/t ≤ 50 (thin-wall manufacturability, kept in `config.MAX_D_OVER_T`).
-  - `nearest_simulated(G_full: np.ndarray, X_ref: np.ndarray) -> tuple[np.ndarray, np.ndarray]` returning (index, standardised distance) to the closest FRAMED design, as the stand-in verification
-  - `run_study(material: str, seed: int) -> pd.DataFrame` with columns for the Pareto designs, predictions, CI and nearest-design distance
+### Task 7 (conditional): Multi-fidelity with OptiStruct as the low-fidelity source
 
-- [ ] **Step 1: Write failing tests**
-  - `test_problem_duck_types_optimizer`: `nsga2(FramedProblem(stub_surrogate), pop_size=8, generations=2)` runs and returns arrays.
-  - `test_reference_frame_mass` (skipif no data): `Y.loc[3853, "Model Mass"]` is within 2.84 ± 0.01.
-  - `test_ci_lower_bound_constraint`: a stub surrogate with mean SF 1.2 and lower bound 0.9 gives `cv > 0`.
-- [ ] **Step 2:** Run the tests. Expected: FAIL.
-- [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run `python -m src.framed.run --stage optimize` to write `data/framed_pareto.csv` and `models/framed/optimize.json` (baseline vs knee vs lightest feasible per material: mass saving %, stiffness change %, SF lower bound, nearest-design distance). Then run pytest.
-- [ ] **Step 5:** Commit: `feat(framed): uncertainty-aware lightweighting of a FRAMED reference frame`.
+Run this only if Task 5 gives r ≥ 0.9 on at least 5 of the 7 displacement outputs. Otherwise record "skipped: r = …" and go to Task 8.
 
-### Task 8: Report, app tab, README, pipeline
+- [ ] **Step 1:** Solve all 4047 originals in OptiStruct in batch (time estimated from the Task 5 wall time × 4047 / n_parallel; tell the user the estimate before starting). Cache the results in `models/framed/optistruct_all.parquet`.
+- [ ] **Step 2:** Add an `mf_*` variant of the best Task 6 model that takes the OptiStruct outputs as features (and, for `pg_mlp`, learns the SolidWorks/OptiStruct log-ratio). Test: `test_mf_feature_alignment` checks that row indices match FRAMED.
+- [ ] **Step 3:** `--stage multifidelity` runs the same 50 folds and adds the results to `ours.json`. Then run pytest and commit `feat(framed): OptiStruct multi-fidelity surrogate`.
 
-**Files:**
-- Modify: `src/framed/run.py` (`--stage report`, `--stage all`), `src/framed/figures.py`, `app.py`, `README.md`, `run_pipeline.ps1`
-- Test: `tests/test_framed.py`
+### Task 8: Out-of-distribution test on the 10,805 generated frames
 
-**Interfaces:**
-- Consumes: the JSON outputs of Tasks 3, 5, 6 and 7, and the figures from Task 2
-- Produces:
-  - Figures: `fig_table4_comparison(repro, ours)` (grouped bars: paper vs reproduced vs ours, R² and MAE), `fig_ood(ood)`, `fig_framed_pareto(df)`
-  - `reports/framed/index.html` (gallery) and `reports/framed_benchmark.md` (sections: Source & citation, Reproduction with a pass/fail table, Discrepancies, Improvements with paired statistics, OOD, Optimisation, Limitations)
-  - App tab "FRAMED benchmark" with sub-views: Reproduction, Our models, OOD, Optimiser. It reads only JSON/CSV through a small loader in `src/framed/run.py`, and when the artefacts are missing it shows the command to generate them.
-  - README section "Benchmark on published data (FRAMED)", with the citation, the MIT attribution, the headline table between new `<!-- FRAMED:START -->`/`<!-- FRAMED:END -->` markers, and honest limitations: bicycle, not motorcycle; SolidWorks solid FE that cannot be re-run here; 4047 rows against the paper's 4118; inferred CV protocol; MSE inconsistency.
-  - `run_pipeline.ps1` gets a `-Framed` switch that runs `python -m src.framed.run --stage all`.
+- [ ] **Step 1: Test** `test_ood_reports_extrapolation`: 3 of 10 rows out of range give a fraction of 0.3 and metrics for both subsets.
+- [ ] **Step 2–3:** red → implement `evaluate_ood(models, X_tr, Y_tr, X_gen, Y_gen) -> dict` in `surrogates.py`. Refit on all 4047 originals, evaluate the paper's models and ours, and report CI coverage for the UQ models.
+- [ ] **Step 4:** `--stage ood` writes `models/framed/ood.json`. Run pytest, then commit `feat(framed): OOD test on generated frames`.
 
-- [ ] **Step 1: Write failing test** `test_report_builds_from_fixtures`: given fixture JSONs in `tmp_path`, `build_report(tmp_path)` writes an `index.html` and an `.md` that contains "Regenwetter".
-- [ ] **Step 2:** Run it. Expected: FAIL.
-- [ ] **Step 3:** Implement, and use the `run` skill to launch the Streamlit app and screenshot tab 5.
-- [ ] **Step 4:** Run `.\.venv\Scripts\python.exe -m pytest` (full suite, including the 26 V1 tests). Expected: all pass.
-- [ ] **Step 5:** Commit: `docs(framed): benchmark report, app tab and README section`.
+### Task 9: Uncertainty-aware lightweighting with OptiStruct verification
+
+**Files:** Create `src/framed/optimize.py`
+
+**Interfaces (produces):**
+- `class FramedProblem`: attributes `xl, xu, n_var, archive, tag, n_evals`; methods `evaluate(G) -> {"Y","F","V","cv","feasible"}` and `normalise(F)`, matching `src/optimizer.py`. Reference frame `X.loc[3853]`; 10 variables (OD and t of TT, DT, ST, SS, CS); bounds at the FRAMED 1st–99th percentile; D/t ≤ 50; material fixed per run.
+- `run_study(material: str, seed: int, algorithms=("nsga2","parego")) -> pd.DataFrame`: the Pareto set, knee point (`src.optimizer.knee_point`), the lightest feasible design and the CI bounds
+- `verify_with_optistruct(designs: pd.DataFrame) -> pd.DataFrame`: writes decks for the reference, knee and lightest designs (plus the full Pareto set if cheap), runs them, and reports OptiStruct mass, displacements and SF with **ratios to the OptiStruct reference** (decision 6)
+
+- [ ] **Step 1: Tests.**
+  - `test_problem_duck_types_optimizer`: a stub surrogate works with `nsga2(pop_size=8, generations=2)`
+  - `test_ci_lower_bound_constraint`: mean SF 1.2 with lower bound 0.9 gives `cv > 0`
+  - `test_onehot_snapped`
+- [ ] **Step 2–3:** red → implement.
+- [ ] **Step 4:** `--stage optimize` writes `data/framed_pareto.csv` and `models/framed/optimize.json` for steel, Al and Ti. Each OptiStruct-verified headline (mass saving %, stiffness change %, SF ratio) is reported only if OptiStruct agrees on the direction of every constraint; otherwise it is flagged.
+- [ ] **Step 5:** Run pytest, then commit `feat(framed): lightweighting with OptiStruct verification`.
+
+### Task 10: Report (impeccable, Read mode), app tab, README
+
+**Files:** Create `src/framed/report.py`, `PRODUCT.md` (via impeccable init); modify `app.py`, `README.md`, `run_pipeline.ps1`
+
+- [ ] **Step 1: Builder test.** `test_report_builds_from_fixtures`: fixture JSONs give an `index.html` and an `.md` that contain "Regenwetter", every `paper_reference` Table 4 value and a pass/fail cell per check.
+- [ ] **Step 2:** Implement `build_report(artifacts_dir, out_dir) -> Path`. It writes a static HTML page with embedded Plotly figures (`include_plotlyjs="cdn"`, pinned version) and a Markdown twin. Report outline:
+  1. Summary: three headline numbers (reproduction pass rate, best surrogate vs paper AutoML, OptiStruct-verified mass saving)
+  2. Source and why it is credible
+  3. Reproduction: statistics and Table 4, each with paper / ours / deviation, and the figure pairs side by side
+  4. OptiStruct cross-check, with HyperMesh screenshots
+  5. Improvements, with paired statistics and CI calibration
+  6. OOD generalisation
+  7. Optimisation and FE verification
+  8. Discrepancies and limitations: bicycle not motorcycle; beam vs solid; 4047 vs 4118 rows; inferred protocol; MSE inconsistency; any failed gate
+  9. Hardware and run times
+  10. References and licences
+- [ ] **Step 3: Design with impeccable.** Invoke `impeccable:impeccable`. Run `impeccable context`, then `init`: PRODUCT.md for "an engineering portfolio report: reproduce → cross-check → improve", with recruiters and CAE engineers as the audience and Read mode. Then follow new-work for the report surface and read `craft-floor.md` before editing the template. Keep the project's existing Plotly palette (`src/plots.py`) as the chart system, so figures and page read as one.
+- [ ] **Step 4: Verify.** Run `impeccable shot reports/framed/index.html` at desktop and phone widths, fix what one look shows, and shoot again. Then run `impeccable critique` and `audit` on the page, and fix the material findings.
+- [ ] **Step 5: App and docs.**
+  - App tab 5 has sub-views Reproduction, OptiStruct, Our models, OOD and Optimiser. It reads JSON and CSV only, and shows the generating command when artefacts are missing.
+  - README section "Benchmark on published data (FRAMED)" sits between `<!-- FRAMED:START/END -->` markers, with the citation and MIT attribution.
+  - `run_pipeline.ps1 -Framed` runs `python -m src.framed.run --stage all`.
+- [ ] **Step 6:** Run the full `.\.venv\Scripts\python.exe -m pytest` (V1 and FRAMED). Expected: all pass. Commit `docs(framed): benchmark report, app tab, README`.
+- [ ] 🔍 **Gate C, reviewer subagent.** A whole-branch review with superpowers:requesting-code-review. Brief: whether every number in the report traces to a JSON artefact or `paper_reference`, no claim is stronger than its evidence, the licences and attribution are correct, and no data or prompts are committed. Fix the findings, rerun pytest, and push.
 
 ---
 
-## Expected outcomes and risks
+## Risks
 
 | Risk | Mitigation |
 |---|---|
-| AutoGluon may not install on Python 3.13, or may be slow on a laptop | Optional; `--skip-autogluon`; report the paper's AutoML number as the reference and compare against it |
-| Reproduced R² misses ±0.05 because of the inferred protocol or the 4047-row data | Report as a discrepancy, with two protocol variants (uniform vs variance-weighted R²); never tune to match |
-| The physics features may not beat AutoML on SF (paper: stress is mesh-sensitive, Sec. 3.5) | Report per target; the expected gains are in mass and stiffness, where beam theory applies |
-| No FE re-check of optimised frames | CI lower-bound constraints + nearest-design distance; offer a SolidWorks re-run with the authors' `PreSW.py`/`PostSW.py` templates if a licence is available |
-| Run time: 5 models × 50 folds + GP | `--fast` (1 × 5 folds); the GP uses the top 20 features |
+| The folder cannot be reached from the cloud | Run in a local Claude Code session (Task 0); this plan is on the branch |
+| Geometry reconstruction misses the 5 % mass gate | Stop at Task 5 Step 5, report the per-tube error breakdown, and ask the user before relaxing the gate |
+| OptiStruct SF far from SolidWorks SF | Expected (singular junction stresses vs beam); report it, and verify optima by ratio |
+| AutoGluon will not install on Windows or this Python | `.venv-ag`, or compare with the published 0.605 |
+| Long runs (50-fold CV, OptiStruct batch) | `--fast`; time estimate shown before any run longer than 30 min |
+| Paper figure reuse in a public report | Local-only side-by-side unless the arXiv licence permits it; otherwise cite the figure number |
