@@ -152,7 +152,7 @@ def stage_optimize(args):
     import pandas as pd
     from src import config as v1
     from src.framed.data import load_framed
-    from src.framed.optimize import run_study
+    from src.framed.optimize import run_study, typical_nn_distance
     from src.framed.surrogates import our_models
     X, Y = load_framed()
     ours = load_artifact("ours") or {"models": {}}
@@ -163,14 +163,19 @@ def stage_optimize(args):
     gens = 15 if args.fast else 60
     studies, fronts = {}, []
     for mat in ("Titanium", "Steel", "Aluminum"):
-        r = run_study(sur, X, Y, mat, generations=gens)
-        studies[mat] = {"algorithms": r["algorithms"], "table": r["table"].to_dict(orient="records")}
-        fronts.append(r["front"])
-        print(mat, r["table"][["design", "mass_kg", "dropout_y_mm", "sf1_lo", "sf3_lo", "feasible",
-                                "nearest_distance"]].round(3).to_string(), sep="\n")
+        for robust in (False, True):
+            r = run_study(sur, X, Y, mat, generations=gens, robust=robust)
+            key = f"{mat} · {'robust (95 % lower bound)' if robust else 'nominal (mean)'}"
+            studies[key] = {"material": mat, "robust": robust, "algorithms": r["algorithms"],
+                            "table": r["table"].to_dict(orient="records")}
+            fronts.append(r["front"])
+            print(key, r["table"][["design", "mass_kg", "dropout_y_mm", "sf1_lo", "sf3_lo", "feasible",
+                                    "nearest_distance"]].round(3).to_string(), sep="\n")
     pd.concat(fronts).to_csv(v1.DATA_DIR / "framed_pareto.csv", index=False)
     _save("optimize", {"surrogate": pick, "studies": studies, "fast": args.fast,
-                       "reference_index": 3853, "verification": "surrogate 95 % CI + nearest simulated design; "
+                       "reference_index": 3853, "typical_nn_distance": typical_nn_distance(X),
+                       "reference_fe": {k: float(Y.loc[3853, k]) for k in ("Model Mass", "Sim 1 Safety Factor",
+                                                                          "Sim 3 Safety Factor", "Sim 1 Dropout Y Disp.")}, "verification": "surrogate 95 % CI + nearest simulated design; "
                                                                 "no FE re-check"})
 
 

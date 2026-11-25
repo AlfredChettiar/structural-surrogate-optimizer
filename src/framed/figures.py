@@ -23,6 +23,9 @@ def _layout(fig, title=None, height=420, **kw):
     fig.update_layout(paper_bgcolor=SURFACE, plot_bgcolor=SURFACE,
                       font=dict(family="Public Sans, system-ui, sans-serif", size=12, color=MUTED),
                       title_font=dict(color=INK, size=15))
+    if title:  # title on its own line, legend below it
+        fig.update_layout(margin=dict(t=96), title=dict(y=0.985, yanchor="top"),
+                          legend=dict(y=1.0, yanchor="bottom", x=0, xanchor="left"))
     fig.update_xaxes(gridcolor="#eef1f5", linecolor=BORDER, zerolinecolor=BORDER)
     fig.update_yaxes(gridcolor="#eef1f5", linecolor=BORDER, zerolinecolor=BORDER)
     return fig
@@ -68,7 +71,12 @@ def fig_performance_pairs(Y: pd.DataFrame) -> go.Figure:
     fig.add_trace(go.Splom(dimensions=dims(cs), name="Case-study frames", text=[str(i) for i in Y.index[cs]],
                            marker=dict(size=11, symbol="x", color=SERIES[3]), diagonal_visible=False,
                            showupperhalf=False))
-    return _layout(fig, "Performance space (cf. paper Fig. 6)", height=760)
+    # crop to the 99.5th percentile like the paper's figures; a handful of extreme frames would squash the axes
+    hi = [float(np.quantile(to_paper_units(c, Y[c].values), 0.995)) for c in PAIR_OBJECTIVES]
+    for i, h in enumerate(hi, start=1):
+        fig.update_layout(**{f"xaxis{'' if i == 1 else i}": dict(range=[0, h * 1.05]),
+                             f"yaxis{'' if i == 1 else i}": dict(range=[0, h * 1.05])})
+    return _layout(fig, "Performance space (cf. paper Fig. 6), cropped at the 99.5th percentile", height=760)
 
 
 def fig_objective_correlation(Y: pd.DataFrame) -> go.Figure:
@@ -140,7 +148,7 @@ def fig_framed_pareto(front: pd.DataFrame, table: pd.DataFrame, material: str) -
                                marker=dict(size=7, color=SERIES[0], opacity=0.7),
                                hovertemplate="%{x:.2f} kg, %{y:.1f} mm<extra></extra>"))
     sym = {"reference (frame 3853 geometry)": ("square", MUTED), "knee": ("star", SERIES[3]),
-           "lightest feasible": ("diamond", SERIES[1])}
+           "lightest feasible": ("diamond", SERIES[1]), "lightest at ≤ reference deflection": ("circle", SERIES[2])}
     for _, r in table.iterrows():
         s_, c_ = sym.get(r["design"], ("circle", INK))
         fig.add_trace(go.Scatter(x=[r["mass_kg"]], y=[r["dropout_y_mm"]], mode="markers", name=r["design"],

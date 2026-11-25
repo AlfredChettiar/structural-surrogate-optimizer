@@ -739,6 +739,101 @@
       "fit_seconds": 28.057656059240006,
       "n_folds": 50,
       "wall_seconds": 472.95279321099997
+    },
+    "autogluon": {
+      "r2": {
+        "mean": 0.7367974984104297,
+        "std": 0.0436870168040727
+      },
+      "mse": {
+        "mean": 0.33649567003654335,
+        "std": 0.13021499991954089
+      },
+      "mae": {
+        "mean": 0.18195871875402952,
+        "std": 0.013149525351202979
+      },
+      "per_target": {
+        "Sim 1 Dropout X Disp.": {
+          "r2": 0.8019644124065198,
+          "mae": 0.0028040788574519,
+          "max_rel_err_pct": 5630.9111464425105,
+          "r2_std": 0.8019644124065198
+        },
+        "Sim 1 Dropout Y Disp.": {
+          "r2": 0.6255282462283872,
+          "mae": 0.007372493505168441,
+          "max_rel_err_pct": 5201.444990197742,
+          "r2_std": 0.6255282462283872
+        },
+        "Sim 1 Bottom Bracket X Disp.": {
+          "r2": 0.8627287029254831,
+          "mae": 0.0029391563751260444,
+          "max_rel_err_pct": 5556.638492167016,
+          "r2_std": 0.8627287029254831
+        },
+        "Sim 1 Bottom Bracket Y Disp.": {
+          "r2": 0.784095298085236,
+          "mae": 0.0032144955606067368,
+          "max_rel_err_pct": 8174.788269570649,
+          "r2_std": 0.784095298085236
+        },
+        "Sim 2 Bottom Bracket Z Disp.": {
+          "r2": 0.7363392778007448,
+          "mae": 0.00022380352612201906,
+          "max_rel_err_pct": 4148.371501826905,
+          "r2_std": 0.7363392778007448
+        },
+        "Sim 3 Bottom Bracket Y Disp.": {
+          "r2": 0.47943300369214975,
+          "mae": 0.0022508950899103007,
+          "max_rel_err_pct": 9079.40229978252,
+          "r2_std": 0.4794330036921498
+        },
+        "Sim 3 Bottom Bracket X Rot.": {
+          "r2": 0.6828778409164986,
+          "mae": 0.000750742593974617,
+          "max_rel_err_pct": 2517.12701310447,
+          "r2_std": 0.6828778409164986
+        },
+        "Sim 1 Safety Factor": {
+          "r2": 0.7378734042276116,
+          "mae": 0.14116080719903729,
+          "max_rel_err_pct": 8243.046999232654,
+          "r2_std": 0.7378734042276116
+        },
+        "Sim 3 Safety Factor": {
+          "r2": 0.7057591086378986,
+          "mae": 0.20512401437514435,
+          "max_rel_err_pct": 11627.452664987124,
+          "r2_std": 0.7057591086378985
+        },
+        "Model Mass": {
+          "r2": 0.951375689183768,
+          "mae": 0.25386367028225887,
+          "max_rel_err_pct": 141.1703152949756,
+          "r2_std": 0.951375689183768
+        }
+      },
+      "fold_scores": {
+        "r2": [
+          0.7750626788530037,
+          0.6971382222445521,
+          0.7583166188293787,
+          0.6726974337827936,
+          0.7807725383424207
+        ],
+        "mae": [
+          0.17597919851655397,
+          0.181636992065969,
+          0.18662801394557582,
+          0.20284404891632524,
+          0.16270534032572342
+        ]
+      },
+      "fit_seconds": 0.002126996599872655,
+      "n_folds": 5,
+      "wall_seconds": 1438.4949938930004
     }
   },
   "table": [
@@ -753,7 +848,8 @@
       "ours_mae_std": 0.017454407669134024,
       "paper_mse": 1.156,
       "ours_mse": 0.566109804272213,
-      "status": "outside \u00b10.05"
+      "n_folds": 50,
+      "status": "outside tolerance"
     },
     {
       "model": "knn",
@@ -766,7 +862,8 @@
       "ours_mae_std": 0.019566643242402267,
       "paper_mse": 1.27,
       "ours_mse": 0.7017211927102751,
-      "status": "outside \u00b10.05"
+      "n_folds": 50,
+      "status": "outside tolerance"
     },
     {
       "model": "xgboost",
@@ -779,7 +876,8 @@
       "ours_mae_std": 0.012709631507458982,
       "paper_mse": 0.978,
       "ours_mse": 0.39411261452109586,
-      "status": "outside \u00b10.05"
+      "n_folds": 50,
+      "status": "outside tolerance"
     },
     {
       "model": "neural_net",
@@ -792,23 +890,35 @@
       "ours_mae_std": 0.014606342052050943,
       "paper_mse": 1.031,
       "ours_mse": 0.48475056378354897,
+      "n_folds": 50,
       "status": "pass"
     },
     {
       "model": "autogluon",
       "paper_r2": 0.605,
-      "ours_r2": NaN,
-      "ours_r2_std": NaN,
-      "delta_r2": NaN,
+      "ours_r2": 0.7367974984104297,
+      "ours_r2_std": 0.0436870168040727,
+      "delta_r2": 0.13179749841042976,
       "paper_mae": 0.182,
-      "ours_mae": NaN,
-      "ours_mae_std": NaN,
+      "ours_mae": 0.18195871875402952,
+      "ours_mae_std": 0.013149525351202979,
       "paper_mse": 0.995,
-      "ours_mse": NaN,
-      "status": "not run"
+      "ours_mse": 0.33649567003654335,
+      "n_folds": 5,
+      "status": "outside tolerance"
     }
   ],
-  "ranking_preserved": true,
+  "ranking_preserved": {
+    "compared": [
+      "autogluon",
+      "xgboost",
+      "neural_net",
+      "decision_tree",
+      "knn"
+    ],
+    "complete": true,
+    "preserved": true
+  },
   "fast": false,
   "protocol": "per-fold StandardScaler on X and Y; uniform mean over 10 standardised targets; 10x5 KFold (AutoGluon 1x5)"
 }

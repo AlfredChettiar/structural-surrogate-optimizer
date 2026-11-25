@@ -30,7 +30,7 @@ SECTIONS = [("summary", "Summary"), ("source", "Source"), ("claims", "Dataset cl
 
 CSS = """
 :root{color-scheme:light;--bg:#f6f7f9;--surface:#fff;--surface-2:#eef1f5;--border:#d5dbe3;--border-strong:#a9b3c1;
---text:#0f1720;--text-muted:#4a5566;--text-dim:#6b7585;--amber:#f0a020;--amber-ink:#a34f00;--amber-tint:#fff5e3;
+--text:#0f1720;--text-muted:#4a5566;--text-dim:#5d6776;--amber:#f0a020;--amber-ink:#a34f00;--amber-tint:#fff5e3;
 --cyan-ink:#0b6e85;--cyan-tint:#e3f3f7;--green:#157a40;--green-tint:#e6f4ec;--red:#b42318;--red-tint:#fdecea;
 --font-sans:"Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
 --font-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--radius:10px;--rail:220px}
@@ -44,7 +44,7 @@ a{color:var(--cyan-ink);text-underline-offset:3px;text-decoration-thickness:1px}
 a:hover{text-decoration-thickness:2px}
 :focus-visible{outline:2px solid var(--cyan-ink);outline-offset:2px;border-radius:4px}
 h1,h2,h3{text-wrap:balance;margin:0;color:var(--text)}
-.mono,td.num,th.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.mono,td.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
 .skip{position:absolute;left:-999px;top:8px;background:var(--surface);padding:8px 12px;border-radius:6px}
 .skip:focus{left:8px}
 .layout{max-width:1180px;margin:0 auto;padding:0 clamp(16px,4vw,32px);display:grid;grid-template-columns:var(--rail) minmax(0,1fr);gap:48px}
@@ -58,8 +58,8 @@ text-decoration:none;font-size:.9375rem;min-height:44px;display:flex;align-items
 main{padding:40px 0 96px;min-width:0}
 .masthead{padding-bottom:28px;border-bottom:1px solid var(--border);margin-bottom:8px}
 .masthead h1{font-size:clamp(1.75rem,3.2vw,2.5rem);line-height:1.15;letter-spacing:-.02em;max-width:24ch}
-.byline{margin:14px 0 0;color:var(--text-muted);font-size:.9375rem;display:flex;flex-wrap:wrap;gap:6px 16px}
-.byline a{min-height:44px;display:inline-flex;align-items:center}
+.byline{margin:10px 0 0;color:var(--text-muted);font-size:.9375rem;display:flex;flex-wrap:wrap;align-items:center;gap:0 18px}
+.byline>*{min-height:44px;display:inline-flex;align-items:center}
 .lede{margin:18px 0 0;max-width:68ch;color:var(--text-muted);font-size:1.0625rem}
 section{padding-top:48px}
 section>h2{font-size:1.5rem;letter-spacing:-.01em;margin-bottom:14px}
@@ -67,10 +67,11 @@ h3{font-size:1.125rem;margin:28px 0 10px}
 p,ul{max-width:70ch;margin:0 0 14px}
 ul{padding-left:1.2em}
 li{margin:4px 0}
-.findings{list-style:none;padding:0;margin:8px 0 0;max-width:none;display:grid;gap:12px}
-.findings li{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin:0}
+.findings{list-style:none;padding:0;margin:4px 0 0;max-width:72ch}
+.findings li{border-top:1px solid var(--border);padding:14px 0;margin:0}
+.findings li:last-child{border-bottom:1px solid var(--border)}
 .findings strong{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-weight:600}
-.table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin:12px 0 18px}
+.table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin:12px 0 18px;padding:4px 6px}
 table{border-collapse:collapse;width:100%;font-size:.9375rem}
 caption{text-align:left;padding:12px 14px 4px;color:var(--text-dim);font-size:.8125rem}
 th,td{padding:9px 14px;border-bottom:1px solid var(--surface-2);text-align:left;vertical-align:top;white-space:nowrap}
@@ -140,7 +141,7 @@ def table(head: list[str], rows: list[list], num_cols: set[int] = frozenset(), c
 
 
 def figure(fig, caption: str) -> str:
-    snippet = fig.to_html(full_html=False, include_plotlyjs=False, config={"displaylogo": False, "responsive": True})
+    snippet = fig.to_html(full_html=False, include_plotlyjs=False, config={"displayModeBar": False, "responsive": True})
     return f"<figure>{snippet}<figcaption>{esc(caption)}</figcaption></figure>"
 
 
@@ -165,8 +166,9 @@ def headline(art: dict) -> dict:
 
 def sec_summary(art, h) -> str:
     opt = art.get("optimize") or {}
-    ti = next((r for r in (opt.get("studies", {}).get("Titanium", {}).get("table") or [])
-               if r["design"] == "knee"), None)
+    ti = next((r for r in (opt.get("studies", {}).get("Titanium · nominal (mean)", {}).get("table") or [])
+               if r["design"] != "knee" and r["feasible"] and r["dropout_y_change_pct"] <= 0
+               and r["mass_change_pct"] < 0), None)
     items = [f"<li><strong>{h['n_pass']} of {h['n_checks']}</strong> checkable dataset claims in the paper "
              f"reproduce from the released data within tolerance (frame counts, the non-dominated set and the three "
              f"case-study frames).</li>"]
@@ -176,16 +178,29 @@ def sec_summary(art, h) -> str:
                      f"<strong>{fmt(h['paper_best_r2'])}</strong> vs <strong>{fmt(h['published_best'])}</strong> "
                      f"published).</li>")
     if h["best"]:
-        items.append(f"<li>This project's physics-informed {esc(label(h['best']).lower())} reaches R² "
-                     f"<strong>{fmt(h['best_r2'])}</strong> on the identical folds: "
-                     f"<strong>{h['best_r2'] - h['paper_best_r2']:+.3f}</strong> over the best reproduced paper "
-                     f"model and <strong>{h['best_r2'] - h['published_best']:+.3f}</strong> over the paper's "
-                     f"published AutoML, with calibrated 95 % intervals.</li>")
+        ours = art["ours"]["models"]
+        pb_mae = art["reproduction"]["models"][h["paper_best"]]["mae"]["mean"]
+        b_mae = ours[h["best"]]["mae"]["mean"]
+        items.append(f"<li>Adding this project's beam-theory features and log-scaled targets lifts the best model to R² "
+                     f"<strong>{fmt(h['best_r2'])}</strong> ({esc(label(h['best']))}): "
+                     f"<strong>{h['best_r2'] - h['paper_best_r2']:+.3f}</strong> R² and "
+                     f"<strong>{100 * (b_mae / pb_mae - 1):+.0f} %</strong> MAE against the best reproduced paper "
+                     f"model, {esc(label(h['paper_best']))}, on identical folds"
+                     + (f" (R² gain not significant over {t['n_folds']} folds, p = {t['p_value']:.2f})"
+                        if (t := art["ours"]["paired_tests"][h["best"]].get(h["paper_best"])) and t["p_value"] >= 0.05
+                        else "") + ".</li>")
+        solo = [m for m in ours if not m.startswith("autogluon")]
+        if solo:
+            sb = max(solo, key=lambda k: ours[k]["r2"]["mean"])
+            items.append(f"<li>The best single model, a {esc(label(sb).lower())}, reaches R² "
+                         f"<strong>{fmt(ours[sb]['r2']['mean'])}</strong>, on par with the AutoML ensemble, and adds "
+                         f"calibrated 95 % intervals that the paper's models do not provide.</li>")
     if ti:
-        items.append(f"<li>An uncertainty-aware optimisation of the paper's titanium road frame (frame 3853) finds a "
-                     f"balanced design at <strong>{ti['mass_change_pct']:+.1f} %</strong> mass and "
-                     f"<strong>{ti['dropout_y_change_pct']:+.1f} %</strong> in-plane deflection, predicted by the "
-                     f"surrogate only (not FE re-verified).</li>")
+        items.append(f"<li>Re-sizing the tubes of the paper's titanium road frame (frame 3853) gives a design at "
+                     f"<strong>{ti['mass_change_pct']:+.1f} %</strong> mass with "
+                     f"<strong>{ti['dropout_y_change_pct']:+.1f} %</strong> in-plane deflection and mean SF ≥ 1. "
+                     f"Demanding SF ≥ 1 on the 95 % lower bound instead costs mass (see Optimisation). Surrogate "
+                     f"predictions only, not FE re-verified.</li>")
     return (f'<section id="summary" aria-labelledby="h-summary"><h2 id="h-summary">Summary</h2>'
             f'<ul class="findings">{"".join(items)}</ul></section>')
 
@@ -251,6 +266,9 @@ def sec_reproduction(art, data, oof_dir: Path) -> str:
     rk_text = ("The paper's ranking (" + " > ".join(label(m) for m in rk.get("compared", [])) + ") is "
                + ("preserved" if rk.get("preserved") else "not preserved")
                + ("" if rk.get("complete") else " among the models that ran") + ".") if rk else ""
+    d = t["delta_r2"].dropna()
+    gap_text = (f"Every reproduced model scores higher than published, by {d.min():.2f}–{d.max():.2f} R²; MAE lands "
+                f"close to the paper's (within {(t['ours_mae'] - t['paper_mae']).abs().max():.3f})." if len(d) else "")
     rows_fig = t.loc[PAPER_MODELS, ["paper_r2", "ours_r2", "ours_r2_std", "paper_mae", "ours_mae", "ours_mae_std"]]
     out = [f"""<section id="reproduction" aria-labelledby="h-repro"><h2 id="h-repro">Table 4 reproduction</h2>
 <p>The paper's five regressors were rebuilt with the best hyperparameters the authors report (their Tables 6–9) and
@@ -260,7 +278,7 @@ AutoML (AutoGluon) runs on 1 × 5 folds to bound its run time.</p>
 {table(["Model", "Paper R²", "This study R²", "Δ R²", "Paper MAE", "This study MAE", "Paper MSE",
         "This study MSE", "Folds", "Verdict"], rows, {1, 2, 3, 4, 5, 6, 7, 8}, "Paper Table 4 vs this study")}
 <p>{esc(rk_text)}</p>
-<p class="note">Every reproduced model scores higher than published, by 0.05–0.10 R², and the paper's MSE values
+<p class="note">{gap_text} The paper's MSE values
 (≈1.0) cannot come from unit-variance targets at its own R². The likeliest cause is data version: the paper trained on
 4,118 frames, the public release holds 4,047, so 71 frames, plausibly the most extreme, are missing. The authors'
 AutoML training code is not public, so the protocol above is inferred. These gaps are reported, not tuned away.</p>
@@ -313,7 +331,7 @@ models below share the paper models' exact folds, so every comparison is paired.
 corrected resampled t-test, which accounts for overlapping training sets in repeated cross-validation.</p>
 {table(["Against", "Mean Δ R²", "Folds won", "p (one-sided)", "Verdict"], trows, {1, 2, 3}, "Corrected resampled t-test")}
 <h3>Per-output accuracy of {esc(label(best))}</h3>
-{table(["Output", f"R² {label(pb) if pb else ''}", "R² this model", "MAE (physical)", "Unit", "Max rel. error (%)"],
+{table(["Output", "R² best paper model", "R² this model", "MAE (physical)", "Unit", "Max rel. error (%)"],
        prow, {1, 2, 3, 5}, "R² on standardised scale; max relative error is the worst case over all folds, with a "
        "floor of 5 % of the training median for deflections")}
 <h3>Uncertainty calibration</h3>
@@ -343,22 +361,29 @@ def sec_optimisation(art, fronts: pd.DataFrame | None) -> str:
 <p>The paper names constrained optimisation with its surrogates as future work. Here the paper's case-study titanium
 road frame (frame 3853, 2.84 kg) keeps its rider-fit geometry, and NSGA-II varies the outer diameter and wall thickness
 of the top, down and seat tubes and the stays (10 variables, within the dataset's 1st–99th percentile). Objectives:
-minimum mass and minimum in-plane dropout deflection. Constraints: both safety factors ≥ 1 on the
-<em>lower</em> 95 % bound of the {esc(label(opt["surrogate"]).lower())}, transverse deflection no worse than the
-reference, D/t ≤ 50. The study is repeated with the same geometry in steel and aluminium.</p>
-<p class="note">These designs are predicted by the surrogate only; none was re-checked in FE. The nearest-design
-distance shows how far each sits from frames that were actually simulated (standardised units; small is better).</p>"""]
-    for mat, st in opt["studies"].items():
+minimum mass and minimum in-plane dropout deflection. Constraints: both safety factors ≥ 1, transverse deflection no
+worse than the reference, D/t ≤ 50. Each material is run twice: <em>nominal</em> uses the mean prediction of the
+{esc(label(opt["surrogate"]).lower())}, <em>robust</em> requires SF ≥ 1 on its lower 95 % bound. The gap between the
+two is the mass price of certainty.</p>
+<p class="note">In FE the reference frame has SF {opt["reference_fe"]["Sim 1 Safety Factor"]:.2f} / {opt["reference_fe"]["Sim 3 Safety Factor"]:.2f}
+and {opt["reference_fe"]["Model Mass"]:.2f} kg. The surrogate's safety-factor intervals are wide (the paper warns its SF labels
+are mesh-sensitive), so the robust runs reject even the reference and add material. All designs are surrogate
+predictions; none was re-checked in FE. "Nearest design" is the standardised distance to the closest simulated frame;
+for comparison, a typical FRAMED frame sits {opt["typical_nn_distance"]:.2f} from its nearest neighbour.</p>"""]
+    for key, st in opt["studies"].items():
+        mat = st.get("material", key)
         rows = [[esc(r["design"]), fmt(r["mass_kg"], 2), f'{r["mass_lo"]:.2f}–{r["mass_hi"]:.2f}',
-                 fmt(r["dropout_y_mm"], 1), fmt(r["sf1_lo"], 2), fmt(r["sf3_lo"], 2),
+                 fmt(r["dropout_y_mm"], 1), f'{r["sf1"]:.2f} ({r["sf1_lo"]:.2f})', f'{r["sf3"]:.2f} ({r["sf3_lo"]:.2f})',
                  f'{r["mass_change_pct"]:+.1f} %', f'{r["dropout_y_change_pct"]:+.1f} %', fmt(r["nearest_distance"], 2),
                  verdict("feasible", "pass") if r["feasible"] else verdict("infeasible", "fail")] for r in st["table"]]
-        out.append(f"<h3>{esc(mat)}</h3>")
-        out.append(table(["Design", "Mass (kg)", "95 % range", "Dropout Y (mm)", "SF1 low", "SF3 low", "Δ mass",
+        out.append(f"<h3>{esc(key)}</h3>")
+        out.append(table(["Design", "Mass (kg)", "95 % range", "Dropout Y (mm)", "SF1 mean (low)", "SF3 mean (low)", "Δ mass",
                           "Δ deflection", "Nearest design", "Status"], rows, {1, 2, 3, 4, 5, 6, 7, 8},
-                         f"{mat}: reference vs optimised (surrogate-predicted)"))
-        if fronts is not None and len(fronts[fronts["material"] == mat]):
-            out.append(figure(F.fig_framed_pareto(fronts[fronts["material"] == mat], pd.DataFrame(st["table"]), mat),
+                         f"{key}: reference vs optimised (surrogate-predicted)"))
+        mode = "robust" if st.get("robust") else "nominal"
+        sel = fronts[(fronts["material"] == mat) & (fronts["mode"] == mode)] if fronts is not None and len(fronts) else []
+        if len(sel):
+            out.append(figure(F.fig_framed_pareto(sel, pd.DataFrame(st["table"]), key),
                               "Feasible Pareto designs; bars show the 95 % mass interval."))
     out.append("</section>")
     return "".join(out)
@@ -426,7 +451,7 @@ def build_report(artifacts_dir: Path = fc.MODELS_DIR, out_dir: Path = fc.REPORT_
 <body><a class="skip" href="#main">Skip to content</a><div class="layout">
 <nav class="rail" aria-label="Contents"><p>Contents</p><ol>{rail}</ol></nav>
 <main id="main"><header class="masthead">
-<h1>Reproducing, then beating, a published bicycle-frame surrogate benchmark</h1>
+<h1>Reproducing a published bicycle-frame surrogate benchmark, then extending it with physics</h1>
 <p class="byline"><span>Alfred Chettiar</span><a href="{LINKEDIN}">LinkedIn</a><a href="{REPO}">GitHub repository</a>
 <span class="mono">{today}</span></p>
 <p class="lede">A peer-reviewed dataset of 4,047 FE-simulated tubular frames, the paper's claims re-derived from its

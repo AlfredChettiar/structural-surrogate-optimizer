@@ -37,6 +37,7 @@ class FramedProblem(ChassisProblem):
     X_all: pd.DataFrame = None
     material: str = "Titanium"
     max_bb_z: float = np.inf  # transverse BB deflection limit (m)
+    robust: bool = True  # SF constraint on the 95 % lower bound (robust) or on the mean (nominal)
 
     def __post_init__(self):
         self.base = snap_material(self.X_all.loc[[REF_INDEX]].assign(
@@ -60,9 +61,10 @@ class FramedProblem(ChassisProblem):
         G = np.clip(np.atleast_2d(np.asarray(G, float)), self.xl, self.xu)
         lo, Y, hi = self.predict(G)
         od, t = G[:, :5], G[:, 5:]
+        S = lo if self.robust else Y
         V = np.column_stack([
-            1.0 - lo[:, J["Sim 1 Safety Factor"]],  # SF >= 1 on the 95 % lower bound
-            1.0 - lo[:, J["Sim 3 Safety Factor"]],
+            1.0 - S[:, J["Sim 1 Safety Factor"]],  # SF >= 1 (lower bound when robust, else mean)
+            1.0 - S[:, J["Sim 3 Safety Factor"]],
             (Y[:, J["Sim 2 Bottom Bracket Z Disp."]] - self.max_bb_z) / self.max_bb_z,
             ((od / t - MAX_D_OVER_T) / MAX_D_OVER_T).max(1),  # thin-wall manufacturability
             ((2 * t - od) / od).max(1),  # wall cannot exceed the radius
@@ -81,6 +83,17 @@ def nearest_simulated(Xq: pd.DataFrame, X_all: pd.DataFrame) -> tuple[np.ndarray
     d = np.sqrt(((A[:, None, :] - B[None]) ** 2).sum(-1))
     i = d.argmin(1)
     return X_all.index.to_numpy()[i], d[np.arange(len(Xq)), i]
+
+
+def typical_nn_distance(X_all: pd.DataFrame, n: int = 500, seed: int = fc.SEED) -> float:
+    """Median standardised distance from a FRAMED design to its nearest other FRAMED design (context for
+    nearest_simulated)."""
+    mu, sd = X_all.mean(), X_all.std().replace(0, 1)
+    B = ((X_all - mu) / sd).to_numpy()
+    idx = np.random.default_rng(seed).choice(len(B), min(n, len(B)), replace=False)
+    d = np.sqrt(((B[idx, None, :] - B[None]) ** 2).sum(-1))
+    d[np.arange(len(idx)), idx] = np.inf
+    return float(np.median(d.min(1)))
 
 
 def _rows(problem: FramedProblem, G: np.ndarray, labels: list[str], Y_all: pd.DataFrame) -> pd.DataFrame:
@@ -102,8 +115,8 @@ def _rows(problem: FramedProblem, G: np.ndarray, labels: list[str], Y_all: pd.Da
 
 
 def run_study(surrogate, X_all: pd.DataFrame, Y_all: pd.DataFrame, material: str, seed: int = fc.SEED,
-              pop_size: int = 100, generations: int = 60) -> dict:
-    p = FramedProblem(surrogate=surrogate, X_all=X_all, material=material)
+              pop_size: int = 100, generations: int = 60, robust: bool = True) -> dict:
+    p = FramedProblem(surrogate=surrogate, X_all=X_all, material=material, robust=robust)
     g0 = X_all.loc[REF_INDEX, VARS].to_numpy()[None]
     # limit = surrogate's own prediction for the reference geometry in this material (no bias between the two)
     p.max_bb_z = float(p.predict(g0)[1][0, J["Sim 2 Bottom Bracket Z Disp."]])
@@ -111,7 +124,7 @@ def run_study(surrogate, X_all: pd.DataFrame, Y_all: pd.DataFrame, material: str
                            ("parego", parego, dict(budget=150))):
         p.tag = name
         algo(p, seed=seed, **kw)
-    out = {"material": material, "algorithms": {}}
+    out = {"material": material, "robust": robust, "algorithms": {}}
     fronts = []
     for name in ("nsga2", "parego"):
         Gs, Fs, cvs = p.archive_for(name)
@@ -126,11 +139,16 @@ def run_study(surrogate, X_all: pd.DataFrame, Y_all: pd.DataFrame, material: str
     if len(front):
         picks += [Gs[front[knee_point(Fs[front])]], Gs[front[0]]]
         labels += ["knee", "lightest feasible"]
+        ref_defl = p.evaluate(g0)["F"][0, 1]
+        stiff = front[Fs[front, 1] <= ref_defl]
+        if len(stiff) and stiff[0] != front[0]:  # lightest design that is at least as stiff in-plane as the reference
+            picks.append(Gs[stiff[0]])
+            labels.append("lightest at ≤ reference deflection")
     table = _rows(p, np.vstack(picks), labels, Y_all)
     base = table.iloc[0]
     table["mass_change_pct"] = 100 * (table["mass_kg"] / base["mass_kg"] - 1)
     table["dropout_y_change_pct"] = 100 * (table["dropout_y_mm"] / base["dropout_y_mm"] - 1)
     front_df = _rows(p, Gs[front], ["pareto"] * len(front), Y_all) if len(front) else pd.DataFrame()
     out["table"] = table
-    out["front"] = front_df.assign(material=material)
+    out["front"] = front_df.assign(material=material, mode="robust" if robust else "nominal")
     return out
