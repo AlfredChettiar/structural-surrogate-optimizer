@@ -8,7 +8,8 @@ Reference: L. Regenwetter, C. Weaver, F. Ahmed, "FRAMED: An AutoML Approach for 
 
 - Dataset claims reproduced: 11 of 11.
 - Best reproduced paper model (AutoML (AutoGluon)): R² 0.737 (published best 0.605).
-- Best model of this project (AutoGluon + physics): R² 0.747 on identical folds.
+- Best model of this project (AutoGluon + physics): R² 0.747 on identical folds (vs AutoML (AutoGluon): +0.010, p = 0.15 over 5 folds).
+- Published Table 4 values are compared descriptively only (different data release, inferred protocol).
 
 ## Dataset claims
 
@@ -65,6 +66,7 @@ Reference: L. Regenwetter, C. Weaver, F. Ahmed, "FRAMED: An AutoML Approach for 
 - Aluminum · nominal (mean), reference (frame 3853 geometry): 1.81 kg (+0.0 %), dropout Y 37.8 mm (+0.0 %), feasible: False
 - Aluminum · nominal (mean), knee: 4.41 kg (+144.1 %), dropout Y 2.8 mm (-92.5 %), feasible: True
 - Aluminum · nominal (mean), lightest feasible: 2.29 kg (+26.8 %), dropout Y 6.4 mm (-83.1 %), feasible: True
+- Aluminum · robust (95 % lower bound): no feasible design found.
 - Aluminum · robust (95 % lower bound), reference (frame 3853 geometry): 1.81 kg (+0.0 %), dropout Y 37.8 mm (+0.0 %), feasible: False
 
 ## Limitations

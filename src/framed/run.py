@@ -32,7 +32,17 @@ def env_info() -> dict:
             "ram_gb": round(vm.total / 1e9, 1), "disk_free_gb": round(du.free / 1e9, 1),
             "python": platform.python_version(), "os": platform.platform(),
             "sklearn": sklearn.__version__, "torch": torch.__version__, "xgboost": xgboost.__version__,
-            "autogluon": automl.available(), "n_jobs": fc.N_JOBS}
+            "autogluon": _ag_version(), "n_jobs": fc.N_JOBS}
+
+
+def _ag_version() -> str:
+    import subprocess
+    from src.framed import automl
+    if not automl.available():
+        return "not installed"
+    r = subprocess.run([str(automl.AG_PYTHON), "-c", "import autogluon.tabular as a; print(a.__version__)"],
+                       capture_output=True, text=True)
+    return f"{r.stdout.strip()} (separate venv .venv-ag)"
 
 
 def stage_fetch(args):
@@ -100,7 +110,8 @@ def corrected_ttest(a: np.ndarray, b: np.ndarray, test_train_ratio: float = 0.25
     d = np.asarray(a) - np.asarray(b)
     J = len(d)
     var = np.var(d, ddof=1)
-    tstat = d.mean() / np.sqrt((1 / J + test_train_ratio) * var) if var > 0 else np.inf * np.sign(d.mean())
+    tstat = d.mean() / np.sqrt((1 / J + test_train_ratio) * var) if var > 0 else (
+        np.inf * np.sign(d.mean()) if d.mean() != 0 else 0.0)
     return {"n_folds": J, "delta": float(d.mean()), "wins": int((d > 0).sum()), "t": float(tstat),
             "p_value": float(student_t.sf(tstat, J - 1))}
 

@@ -325,7 +325,7 @@ def test_report_builds_from_fixtures(tmp_path):
         "ours": {"models": ours, "best": "deep_ensemble_phys", "paired_tests": paired_tests(ours, repro),
                  "coverage": {"deep_ensemble_phys": {c: {"coverage": 0.95, "median_rel_width": 0.3} for c in fc.Y_COLS}},
                  "latency": {"analytic_baseline_ms": 0.1, "nominal_fe_seconds": 180.0,
-                             "models": {"deep_ensemble_phys": {"single_ms": 3.0, "batch_ms_per_design": 0.01,
+                             "models": {"deep_ensemble_phys": {"single_ms": 3.0, "batch_ms_per_design": 0.01, "speedup_vs_analytic_single": 0.03,
                                                                "speedup_vs_nominal_fe_batch": 1.8e7}}}},
         "env": {"cores": 4},
     }
@@ -339,3 +339,22 @@ def test_report_builds_from_fixtures(tmp_path):
         assert f"{v['r2']:.3f}" in page and f"{v['mae']:.3f}" in page
     assert "within tolerance" in page and "not run" in page and "Corrected resampled t-test" in page
     assert "<script" in page and "eyebrow" not in page
+
+
+def test_corrected_ttest_degenerate():
+    from src.framed.run import corrected_ttest
+    r = corrected_ttest(np.ones(5), np.ones(5))
+    assert np.isfinite(r["p_value"]) and r["p_value"] == pytest.approx(0.5)
+
+
+def test_report_optimisation_section_no_feasible():
+    from src.framed.report import sec_optimisation
+    row = {"design": "reference (frame 3853 geometry)", "mass_kg": 2.5, "mass_lo": 2.1, "mass_hi": 3.1,
+           "dropout_y_mm": 27.8, "sf1": 1.1, "sf1_lo": 0.5, "sf3": 0.9, "sf3_lo": 0.4, "mass_change_pct": 0.0,
+           "dropout_y_change_pct": 0.0, "nearest_distance": 0.0, "feasible": False}
+    opt = {"surrogate": "deep_ensemble_phys", "typical_nn_distance": 2.9,
+           "reference_fe": {"Model Mass": 2.84, "Sim 1 Safety Factor": 1.29, "Sim 3 Safety Factor": 1.07},
+           "studies": {"Aluminum · robust": {"material": "Aluminum", "robust": True, "table": [row],
+                                             "algorithms": {"nsga2": {"evaluations": 6000}, "parego": {"evaluations": 150}}}}}
+    out = sec_optimisation({"optimize": opt}, None)
+    assert "No feasible design was found in 6,150 evaluations" in out and "both</em> runs" in out

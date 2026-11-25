@@ -177,7 +177,7 @@ def sec_summary(art, h) -> str:
                      f"ranking; on the released data they score higher than published (best reproduced R² "
                      f"<strong>{fmt(h['paper_best_r2'])}</strong> vs <strong>{fmt(h['published_best'])}</strong> "
                      f"published).</li>")
-    if h["best"]:
+    if h["best"] and h["paper_best"]:
         ours = art["ours"]["models"]
         pb_mae = art["reproduction"]["models"][h["paper_best"]]["mae"]["mean"]
         b_mae = ours[h["best"]]["mae"]["mean"]
@@ -194,10 +194,14 @@ def sec_summary(art, h) -> str:
             sb = max(solo, key=lambda k: ours[k]["r2"]["mean"])
             items.append(f"<li>The best single model, a {esc(label(sb).lower())}, reaches R² "
                          f"<strong>{fmt(ours[sb]['r2']['mean'])}</strong>, on par with the AutoML ensemble, and adds "
-                         f"calibrated 95 % intervals that the paper's models do not provide.</li>")
+                         f"95 % intervals (conservative: they cover 95–98 % of held-out frames) that the paper's models do not "
+                         f"provide.</li>")
     if ti:
+        ref_row = opt["studies"]["Titanium · nominal (mean)"]["table"][0]
         items.append(f"<li>Re-sizing the tubes of the paper's titanium road frame (frame 3853) gives a design at "
-                     f"<strong>{ti['mass_change_pct']:+.1f} %</strong> mass with "
+                     f"<strong>{ti['mass_change_pct']:+.1f} %</strong> mass (against the surrogate's own "
+                     f"{ref_row['mass_kg']:.2f} kg prediction for the reference; FE: "
+                     f"{opt['reference_fe']['Model Mass']:.2f} kg) with "
                      f"<strong>{ti['dropout_y_change_pct']:+.1f} %</strong> in-plane deflection and mean SF ≥ 1. "
                      f"Demanding SF ≥ 1 on the 95 % lower bound instead costs mass (see Optimisation). Surrogate "
                      f"predictions only, not FE re-verified.</li>")
@@ -318,14 +322,16 @@ def sec_improvements(art, data, oof_dir: Path) -> str:
     crow = [[esc(c)] + [fmt(cov[m][c]["coverage"], 2) for m in cov] for c in fc.Y_COLS]
     lat = ours["latency"]
     lrow = [[esc(label(m)), fmt(v["single_ms"], 1), fmt(v["batch_ms_per_design"], 4),
+             f'{v["speedup_vs_analytic_single"]:.2f}×',
              f'{v["speedup_vs_nominal_fe_batch"]:,.0f}×'] for m, v in lat["models"].items()]
     out = [f"""<section id="improvements" aria-labelledby="h-imp"><h2 id="h-imp">Improvements</h2>
 <p>This project's surrogates add what the paper's models lack: beam-theory features computed from each tube (area,
 bending and torsional stiffness EI and GJ, slenderness, an analytic mass estimate ρ·A·L, yield strength), log-scaled
-targets for the heavy-tailed deflections, physical guardrails on every prediction, and calibrated uncertainty. All
+targets for the heavy-tailed deflections, physical guardrails on every prediction, and uncertainty intervals. All
 models below share the paper models' exact folds, so every comparison is paired.</p>
 {table(["Model", "Origin", "R²", "± std", "MAE (std.)", "Paper Table 4 R²", "Folds"], rows, {2, 3, 4, 5, 6},
-       "All models on the same folds (R² and MAE on standardised targets, as in Table 4)")}
+       "All models on the same folds (R² and MAE on standardised targets, as in Table 4). Published Table 4 values "
+       "are descriptive only: different data release and an inferred protocol.")}
 <h3>Is the gain real?</h3>
 <p>Paired comparison of the best model ({esc(label(best))}) with each reproduced paper model, using the Nadeau–Bengio
 corrected resampled t-test, which accounts for overlapping training sets in repeated cross-validation.</p>
@@ -341,7 +347,8 @@ corrected resampled t-test, which accounts for overlapping training sets in repe
 <p>The analytic mass estimate takes {fmt(lat["analytic_baseline_ms"], 3)} ms per frame but predicts mass only. Against
 a nominal {lat["nominal_fe_seconds"]:.0f} s production FE run (an assumed figure; the paper gives no run time), batch
 inference is faster by the factor shown.</p>
-{table(["Model", "Single design (ms)", "Batch, per design (ms)", "Speed-up vs nominal FE (batch)"], lrow, {1, 2, 3},
+{table(["Model", "Single design (ms)", "Batch, per design (ms)", "Speed-up vs analytic (single)",
+        "Speed-up vs nominal FE (batch)"], lrow, {1, 2, 3, 4},
        "Inference latency on the benchmark machine")}"""]
     oof = oof_dir / "ours_oof.npz"
     if data is not None and oof.exists():
@@ -357,6 +364,7 @@ def sec_optimisation(art, fronts: pd.DataFrame | None) -> str:
     opt = art.get("optimize")
     if not opt:
         return '<section id="optimisation"><h2>Optimisation</h2><p>Not run yet.</p></section>'
+    ref_pred = next(iter(opt["studies"].values()))["table"][0]
     out = [f"""<section id="optimisation" aria-labelledby="h-opt"><h2 id="h-opt">Optimisation</h2>
 <p>The paper names constrained optimisation with its surrogates as future work. Here the paper's case-study titanium
 road frame (frame 3853, 2.84 kg) keeps its rider-fit geometry, and NSGA-II varies the outer diameter and wall thickness
@@ -367,7 +375,9 @@ worse than the reference, D/t ≤ 50. Each material is run twice: <em>nominal</e
 two is the mass price of certainty.</p>
 <p class="note">In FE the reference frame has SF {opt["reference_fe"]["Sim 1 Safety Factor"]:.2f} / {opt["reference_fe"]["Sim 3 Safety Factor"]:.2f}
 and {opt["reference_fe"]["Model Mass"]:.2f} kg. The surrogate's safety-factor intervals are wide (the paper warns its SF labels
-are mesh-sensitive), so the robust runs reject even the reference and add material. All designs are surrogate
+are mesh-sensitive). The surrogate predicts the reference itself at {ref_pred['mass_kg']:.2f} kg and SF
+{ref_pred['sf1']:.2f} / {ref_pred['sf3']:.2f}, so <em>both</em> runs treat it as infeasible, and all changes below are
+relative to that prediction. All designs are surrogate
 predictions; none was re-checked in FE. "Nearest design" is the standardised distance to the closest simulated frame;
 for comparison, a typical FRAMED frame sits {opt["typical_nn_distance"]:.2f} from its nearest neighbour.</p>"""]
     for key, st in opt["studies"].items():
@@ -377,6 +387,11 @@ for comparison, a typical FRAMED frame sits {opt["typical_nn_distance"]:.2f} fro
                  f'{r["mass_change_pct"]:+.1f} %', f'{r["dropout_y_change_pct"]:+.1f} %', fmt(r["nearest_distance"], 2),
                  verdict("feasible", "pass") if r["feasible"] else verdict("infeasible", "fail")] for r in st["table"]]
         out.append(f"<h3>{esc(key)}</h3>")
+        if len(st["table"]) == 1:
+            n_ev = sum(a["evaluations"] for a in st["algorithms"].values())
+            out.append(f'<p class="note">No feasible design was found in {n_ev:,} evaluations: with these interval '
+                       f'widths no tube sizing in the bounds reaches SF ≥ 1 on the lower bound. Only the reference is '
+                       f'shown.</p>')
         out.append(table(["Design", "Mass (kg)", "95 % range", "Dropout Y (mm)", "SF1 mean (low)", "SF3 mean (low)", "Δ mass",
                           "Δ deflection", "Nearest design", "Status"], rows, {1, 2, 3, 4, 5, 6, 7, 8},
                          f"{key}: reference vs optimised (surrogate-predicted)"))
@@ -434,7 +449,8 @@ def build_report(artifacts_dir: Path = fc.MODELS_DIR, out_dir: Path = fc.REPORT_
     artifacts_dir, out_dir = Path(artifacts_dir), Path(out_dir)
     art = {k: _load(artifacts_dir, k) for k in ("stats", "reproduction", "ours", "optimize", "env")}
     h = headline(art)
-    pareto = fc.MODELS_DIR.parent.parent / "data" / "framed_pareto.csv"
+    from src import config as v1
+    pareto = v1.DATA_DIR / "framed_pareto.csv"
     fronts = pd.read_csv(pareto) if pareto.exists() and art["optimize"] else None
     body = "".join([sec_summary(art, h), sec_source(art), sec_claims(art, data),
                     sec_reproduction(art, data, artifacts_dir), sec_improvements(art, data, artifacts_dir),
@@ -476,7 +492,12 @@ def markdown(art: dict, h: dict) -> str:
         lines.append(f"- Best reproduced paper model ({label(h['paper_best'])}): R² {h['paper_best_r2']:.3f} "
                      f"(published best {h['published_best']:.3f}).")
     if h["best"]:
-        lines.append(f"- Best model of this project ({label(h['best'])}): R² {h['best_r2']:.3f} on identical folds.")
+        t = (art["ours"]["paired_tests"][h["best"]].get(h["paper_best"]) or {}) if h["paper_best"] else {}
+        lines.append(f"- Best model of this project ({label(h['best'])}): R² {h['best_r2']:.3f} on identical folds"
+                     + (f" (vs {label(h['paper_best'])}: {t['delta']:+.3f}, p = {t['p_value']:.2f} over "
+                        f"{t['n_folds']} folds)" if t else "") + ".")
+        lines.append("- Published Table 4 values are compared descriptively only (different data release, inferred "
+                     "protocol).")
     stats = art.get("stats")
     if stats:
         lines += ["", "## Dataset claims", "", "| Claim | Paper | This study | Δ | Verdict |", "|---|---|---|---|---|"]
@@ -500,6 +521,8 @@ def markdown(art: dict, h: dict) -> str:
     if opt:
         lines += ["", "## Optimisation (surrogate-predicted, not FE re-verified)", ""]
         for mat, st in opt["studies"].items():
+            if len(st["table"]) == 1:
+                lines.append(f"- {mat}: no feasible design found.")
             for r in st["table"]:
                 lines.append(f"- {mat}, {r['design']}: {r['mass_kg']:.2f} kg ({r['mass_change_pct']:+.1f} %), "
                              f"dropout Y {r['dropout_y_mm']:.1f} mm ({r['dropout_y_change_pct']:+.1f} %), "
