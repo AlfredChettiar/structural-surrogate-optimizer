@@ -192,10 +192,12 @@ def sec_summary(art, h) -> str:
         solo = [m for m in ours if not m.startswith("autogluon")]
         if solo:
             sb = max(solo, key=lambda k: ours[k]["r2"]["mean"])
+            cv = [v["coverage"] for v in art["ours"].get("coverage", {}).get(sb, {}).values()]
+            cov_txt = (f" (conservative: they cover {100 * min(cv):.1f}–{100 * max(cv):.1f} % of held-out frames)"
+                       if cv else "")
             items.append(f"<li>The best single model, a {esc(label(sb).lower())}, reaches R² "
                          f"<strong>{fmt(ours[sb]['r2']['mean'])}</strong>, on par with the AutoML ensemble, and adds "
-                         f"95 % intervals (conservative: they cover 95–98 % of held-out frames) that the paper's models do not "
-                         f"provide.</li>")
+                         f"95 % intervals{cov_txt} that the paper's models do not provide.</li>")
     if ti:
         ref_row = opt["studies"]["Titanium · nominal (mean)"]["table"][0]
         items.append(f"<li>Re-sizing the tubes of the paper's titanium road frame (frame 3853) gives a design at "
