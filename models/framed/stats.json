@@ -1,0 +1,134 @@
+{
+  "rows": [
+    {
+      "quantity": "Frames: both fail",
+      "source": "authors' notebook",
+      "paper": 1966.0,
+      "ours": 1967.0,
+      "tol": 2.0,
+      "abs_dev": 1.0,
+      "pct_dev": 0.0508646998982706,
+      "pass": true
+    },
+    {
+      "quantity": "Frames: sf1 only",
+      "source": "authors' notebook",
+      "paper": 1272.0,
+      "ours": 1272.0,
+      "tol": 2.0,
+      "abs_dev": 0.0,
+      "pct_dev": 0.0,
+      "pass": true
+    },
+    {
+      "quantity": "Frames: sf3 only",
+      "source": "authors' notebook",
+      "paper": 182.0,
+      "ours": 182.0,
+      "tol": 2.0,
+      "abs_dev": 0.0,
+      "pct_dev": 0.0,
+      "pass": true
+    },
+    {
+      "quantity": "Frames: valid",
+      "source": "authors' notebook",
+      "paper": 626.0,
+      "ours": 626.0,
+      "tol": 2.0,
+      "abs_dev": 0.0,
+      "pct_dev": 0.0,
+      "pass": true
+    },
+    {
+      "quantity": "Non-dominated designs (5 objectives)",
+      "source": "authors' notebook",
+      "paper": 76.0,
+      "ours": 74.0,
+      "tol": 2.0,
+      "abs_dev": -2.0,
+      "pct_dev": -2.6315789473684212,
+      "pass": true
+    },
+    {
+      "quantity": "Frames failing SF >= 1 in any case",
+      "source": "paper Sec. 5.1",
+      "paper": 3419.0,
+      "ours": 3421.0,
+      "tol": NaN,
+      "abs_dev": 2.0,
+      "pct_dev": 0.058496636443404505,
+      "pass": null
+    },
+    {
+      "quantity": "Geometrically valid frames simulated",
+      "source": "paper Sec. 3.2",
+      "paper": 4118.0,
+      "ours": 4047.0,
+      "tol": NaN,
+      "abs_dev": -71.0,
+      "pct_dev": -1.7241379310344827,
+      "pass": null
+    },
+    {
+      "quantity": "Frame 3853 mass (kg)",
+      "source": "paper Sec. 5.2",
+      "paper": 2.84,
+      "ours": 2.84,
+      "tol": 0.005,
+      "abs_dev": 0.0,
+      "pct_dev": 0.0,
+      "pass": true
+    },
+    {
+      "quantity": "Frame 3853 SF1",
+      "source": "paper Sec. 5.2",
+      "paper": 1.29,
+      "ours": 1.29,
+      "tol": 0.005,
+      "abs_dev": 0.0,
+      "pct_dev": 0.0,
+      "pass": true
+    },
+    {
+      "quantity": "Frame 2108 mass (kg)",
+      "source": "paper Sec. 5.2",
+      "paper": 22.83,
+      "ours": 22.83,
+      "tol": 0.005,
+      "abs_dev": 0.0,
+      "pct_dev": 0.0,
+      "pass": true
+    },
+    {
+      "quantity": "Frame 2108 SF1",
+      "source": "paper Sec. 5.2",
+      "paper": 0.09256,
+      "ours": 0.09256,
+      "tol": 0.005,
+      "abs_dev": 0.0,
+      "pct_dev": 0.0,
+      "pass": true
+    },
+    {
+      "quantity": "Frame 857 mass (kg)",
+      "source": "paper Sec. 5.2",
+      "paper": 1.6,
+      "ours": 1.6,
+      "tol": 0.005,
+      "abs_dev": 0.0,
+      "pct_dev": 0.0,
+      "pass": true
+    },
+    {
+      "quantity": "Frame 857 SF1",
+      "source": "paper Sec. 5.2",
+      "paper": 2.416,
+      "ours": 2.416,
+      "tol": 0.005,
+      "abs_dev": 0.0,
+      "pct_dev": 0.0,
+      "pass": true
+    }
+  ]
+}

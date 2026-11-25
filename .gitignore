@@ -19,3 +19,4 @@ prompts/
 data/external/
 reports/framed/paper_pages/
 .venv-ag/
+models/framed/*.npz
