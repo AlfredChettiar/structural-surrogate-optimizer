@@ -358,3 +358,10 @@ def test_report_optimisation_section_no_feasible():
                                              "algorithms": {"nsga2": {"evaluations": 6000}, "parego": {"evaluations": 150}}}}}
     out = sec_optimisation({"optimize": opt}, None)
     assert "No feasible design was found in 6,150 evaluations" in out and "both</em> runs" in out
+
+
+def test_load_framed_rejects_bad_columns(tmp_path):
+    p = tmp_path / "bad.csv"
+    pd.DataFrame({"a": [1.0], "b": [2.0]}).to_csv(p)
+    with pytest.raises(ValueError, match="39 input columns"):
+        load_framed(p)

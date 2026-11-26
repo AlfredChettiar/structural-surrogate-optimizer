@@ -132,7 +132,7 @@ much larger margin.
 To check the method against a reputed external source, the pipeline was re-run on **FRAMED** [Regenwetter, Weaver & Ahmed,
 *Computer-Aided Design* (Elsevier) 2023, MIT DeCoDE Lab; data MIT-licensed]: 4,047 SolidWorks-simulated bicycle frames
 (39 inputs, 10 outputs: deflections, safety factors, mass). Code: `src/framed/`; run `python -m src.framed.run --stage all`.
-Report: `reports/framed/index.html` (also `reports/framed_benchmark.md`).
+Report: `reports/framed/index.html` (also `reports/framed_benchmark.md`). Full write-up, local training guide and data format: [`docs/FRAMED_PROJECT.md`](docs/FRAMED_PROJECT.md).
 
 - **Paper claims:** 11 of 11 checkable dataset claims reproduce from the released data (frame counts within ±2, case-study frames exact).
 - **Table 4 reproduction:** the paper's five models, rebuilt with the authors' hyperparameters on 10 × 5-fold CV (AutoGluon 1 × 5), keep the published ranking but score higher than published (data release has 71 fewer frames than the paper; protocol inferred). Reproduced AutoML MAE equals the paper's 0.182.

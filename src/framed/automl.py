@@ -11,7 +11,7 @@ import numpy as np
 
 from src import config as v1
 
-AG_PYTHON = v1.ROOT / ".venv-ag" / "bin" / "python"
+AG_PYTHON = v1.ROOT / ".venv-ag" / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
 RUNNER = Path(__file__).with_name("automl_runner.py")
 TIME_LIMIT_S = 90  # per target per fold
 

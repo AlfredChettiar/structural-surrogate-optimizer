@@ -8,3 +8,7 @@ torch==2.15.0
 plotly==7.1.0
 streamlit==1.67.0
 pytest==9.2.0
+# FRAMED benchmark (src/framed); AutoGluon goes in a separate venv, see docs/FRAMED_PROJECT.md
+xgboost==3.4.1
+psutil==7.2.2
+PyMuPDF==2.1
