@@ -1,0 +1,118 @@
+{
+  "pre_drop_rows": 4120,
+  "dropped_rows": 73,
+  "released_rows": 4047,
+  "rebuild_max_abs_diff": 2.842170943040401e-14,
+  "dropped_wall_thicker_than_od": 2,
+  "dropped_outputs_max": {
+    "Sim 1 Dropout X Disp.": 0.07171,
+    "Sim 1 Dropout Y Disp.": 0.1379,
+    "Sim 1 Bottom Bracket X Disp.": 0.0815,
+    "Sim 1 Bottom Bracket Y Disp.": 0.07484,
+    "Sim 2 Bottom Bracket Z Disp.": 0.006496,
+    "Sim 3 Bottom Bracket Y Disp.": 0.041415,
+    "Sim 3 Bottom Bracket X Rot.": 0.016000000000000014,
+    "Sim 1 Safety Factor": 1.916,
+    "Sim 3 Safety Factor": 2.751,
+    "Model Mass": 10.05
+  },
+  "released_outputs_max": {
+    "Sim 1 Dropout X Disp.": 0.2149,
+    "Sim 1 Dropout Y Disp.": 1.386,
+    "Sim 1 Bottom Bracket X Disp.": 0.2884,
+    "Sim 1 Bottom Bracket Y Disp.": 0.3515,
+    "Sim 2 Bottom Bracket Z Disp.": 0.07773,
+    "Sim 3 Bottom Bracket Y Disp.": 0.35009999999999997,
+    "Sim 3 Bottom Bracket X Rot.": 0.04861428571428571,
+    "Sim 1 Safety Factor": 5.513,
+    "Sim 3 Safety Factor": 9.512,
+    "Model Mass": 22.83
+  },
+  "variants": {
+    "released, shuffled": {
+      "decision_tree": {
+        "r2": 0.5134614478986583,
+        "mae": 0.33808828302743976,
+        "mse": 0.5625738695370873
+      },
+      "knn": {
+        "r2": 0.3773297880569328,
+        "mae": 0.44651644674451807,
+        "mse": 0.697469904278141
+      },
+      "xgboost": {
+        "r2": 0.6880732302130073,
+        "mae": 0.22667061725518073,
+        "mse": 0.3934310319847856
+      }
+    },
+    "pre-drop, shuffled": {
+      "decision_tree": {
+        "r2": 0.5019034352604208,
+        "mae": 0.3471206464749072,
+        "mse": 0.5795250495735532
+      },
+      "knn": {
+        "r2": 0.37990709111321525,
+        "mae": 0.4484080284438613,
+        "mse": 0.7018630180145427
+      },
+      "xgboost": {
+        "r2": 0.6857226521993871,
+        "mae": 0.23075098277543757,
+        "mse": 0.39861565229331875
+      }
+    },
+    "released, not shuffled": {
+      "decision_tree": {
+        "r2": 0.5072604082068846,
+        "mae": 0.34525597833060806,
+        "mse": 0.5787950306556535
+      },
+      "knn": {
+        "r2": 0.35823757401184897,
+        "mae": 0.4560906311208539,
+        "mse": 0.727492448619286
+      },
+      "xgboost": {
+        "r2": 0.6742512861881973,
+        "mae": 0.24122809794235084,
+        "mse": 0.4184814109698448
+      }
+    },
+    "pre-drop, not shuffled": {
+      "decision_tree": {
+        "r2": 0.4990910971903292,
+        "mae": 0.3517874255257415,
+        "mse": 0.5865295237571208
+      },
+      "knn": {
+        "r2": 0.3600375150978331,
+        "mae": 0.4563747280474848,
+        "mse": 0.7235788796819389
+      },
+      "xgboost": {
+        "r2": 0.6695238912859344,
+        "mae": 0.24473565308345574,
+        "mse": 0.4233432618289622
+      }
+    }
+  },
+  "paper": {
+    "decision_tree": {
+      "r2": 0.44,
+      "mse": 1.156,
+      "mae": 0.297
+    },
+    "knn": {
+      "r2": 0.306,
+      "mse": 1.27,
+      "mae": 0.412
+    },
+    "xgboost": {
+      "r2": 0.595,
+      "mse": 0.978,
+      "mae": 0.208
+    }
+  }
+}

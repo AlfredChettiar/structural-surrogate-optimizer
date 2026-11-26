@@ -285,9 +285,11 @@ AutoML (AutoGluon) runs on 1 × 5 folds to bound its run time.</p>
         "This study MSE", "Folds", "Verdict"], rows, {1, 2, 3, 4, 5, 6, 7, 8}, "Paper Table 4 vs this study")}
 <p>{esc(rk_text)}</p>
 <p class="note">{gap_text} The paper's MSE values
-(≈1.0) cannot come from unit-variance targets at its own R². The likeliest cause is data version: the paper trained on
-4,118 frames, the public release holds 4,047, so 71 frames, plausibly the most extreme, are missing. The authors'
-AutoML training code is not public, so the protocol above is inferred. These gaps are reported, not tuned away.</p>
+(≈1.0) cannot come from unit-variance targets at its own R². Two explanations were tested and ruled out
+(<code class="mono">scripts/framed_gap_check.py</code>): rebuilding the paper's pre-release dataset (4,120 frames) from
+the raw SolidWorks files with the authors' own preprocessing changes R² by at most 0.011, and unshuffled folds by at most
+0.019; MSE stays at 0.4–0.7. The gap therefore lies in how the paper computed its metrics, and the authors' evaluation
+code is not public. These gaps are reported, not tuned away.</p>
 {figure(F.fig_table4_comparison(rows_fig), "Grey: paper Table 4. Blue: this study (mean ± std over folds).")}"""]
     oof = oof_dir / "reproduction_oof.npz"
     if data is not None and oof.exists():
@@ -333,7 +335,7 @@ targets for the heavy-tailed deflections, physical guardrails on every predictio
 models below share the paper models' exact folds, so every comparison is paired.</p>
 {table(["Model", "Origin", "R²", "± std", "MAE (std.)", "Paper Table 4 R²", "Folds"], rows, {2, 3, 4, 5, 6},
        "All models on the same folds (R² and MAE on standardised targets, as in Table 4). Published Table 4 values "
-       "are descriptive only: different data release and an inferred protocol.")}
+       "are descriptive only: the paper's evaluation code is not public.")}
 <h3>Is the gain real?</h3>
 <p>Paired comparison of the best model ({esc(label(best))}) with each reproduced paper model, using the Nadeau–Bengio
 corrected resampled t-test, which accounts for overlapping training sets in repeated cross-validation.</p>
@@ -498,8 +500,8 @@ def markdown(art: dict, h: dict) -> str:
         lines.append(f"- Best model of this project ({label(h['best'])}): R² {h['best_r2']:.3f} on identical folds"
                      + (f" (vs {label(h['paper_best'])}: {t['delta']:+.3f}, p = {t['p_value']:.2f} over "
                         f"{t['n_folds']} folds)" if t else "") + ".")
-        lines.append("- Published Table 4 values are compared descriptively only (different data release, inferred "
-                     "protocol).")
+        lines.append("- Published Table 4 values are compared descriptively only: the paper's evaluation code is not "
+                     "public, and data version and fold shuffling were tested and ruled out as the cause of the gap.")
     stats = art.get("stats")
     if stats:
         lines += ["", "## Dataset claims", "", "| Claim | Paper | This study | Δ | Verdict |", "|---|---|---|---|---|"]
