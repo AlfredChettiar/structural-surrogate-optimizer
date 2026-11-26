@@ -295,7 +295,7 @@ git clone -b claude/optimistic-meitner-vvd4ne https://github.com/AlfredChettiar/
 cd structural-surrogate-optimizer
 ```
 
-**2. Create the main environment** (Python 3.11–3.13).
+**2. Create the main environment** (Python 3.13 or 3.14; Windows 10/11 is tested in CI on every pull request, see `.github/workflows/windows-ci.yml`).
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip

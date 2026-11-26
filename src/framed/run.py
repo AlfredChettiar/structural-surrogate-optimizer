@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import platform
+import sys
 import time
 
 import numpy as np
@@ -14,12 +15,12 @@ from src.framed import config as fc
 
 def _save(name: str, obj: dict) -> None:
     fc.MODELS_DIR.mkdir(parents=True, exist_ok=True)
-    (fc.MODELS_DIR / f"{name}.json").write_text(json.dumps(obj, indent=2, default=float))
+    (fc.MODELS_DIR / f"{name}.json").write_text(json.dumps(obj, indent=2, default=float), encoding="utf-8")
 
 
 def load_artifact(name: str):
     p = fc.MODELS_DIR / f"{name}.json"
-    return json.loads(p.read_text()) if p.exists() else None
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
 
 
 def env_info() -> dict:
@@ -241,6 +242,9 @@ def main(argv=None):
     ap.add_argument("--fast", action="store_true")
     ap.add_argument("--models", default="", help="comma list; results merge into the existing artefact")
     args = ap.parse_args(argv)
+    for stream in (sys.stdout, sys.stderr):  # Windows consoles/log redirects default to cp1252; output has ≤, ·, ²
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     stages = {"fetch": stage_fetch, "stats": stage_stats, "baselines": stage_baselines, "ours": stage_ours, "optimize": stage_optimize, "report": stage_report, "figures": stage_figures}
     order = ["fetch", "stats", "baselines", "ours", "optimize", "report"]  # "figures" is opt-in (needs kaleido)
     for name in (order if args.stage == "all" else [args.stage]):

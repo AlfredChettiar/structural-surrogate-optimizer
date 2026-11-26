@@ -33,9 +33,11 @@ class AutoGluonModel:
         return self
 
     def predict(self, X):
-        with tempfile.TemporaryDirectory() as d:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:  # Windows: AutoGluon may hold log files
             inp, out = Path(d) / "in.npz", Path(d) / "out.npy"
             np.savez(inp, X=self.X, Y=self.Y, Xp=np.asarray(X, float))
-            subprocess.run([str(AG_PYTHON), str(RUNNER), str(inp), str(out), str(self.time_limit), str(self.seed),
-                            str(Path(d) / "ag")], check=True, capture_output=True)
+            r = subprocess.run([str(AG_PYTHON), str(RUNNER), str(inp), str(out), str(self.time_limit), str(self.seed),
+                                str(Path(d) / "ag")], capture_output=True, text=True)
+            if r.returncode != 0:
+                raise RuntimeError(f"AutoGluon subprocess failed:\n{r.stderr[-2000:]}")
             return np.load(out)
