@@ -14,3 +14,9 @@ logs/
 
 # Local prompt log written by the Claude Code hook
 prompts/
+
+# FRAMED benchmark
+data/external/
+reports/framed/paper_pages/
+.venv-ag/
+models/framed/*.npz

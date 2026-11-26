@@ -126,6 +126,37 @@ The lightest design sits on the D/t = 20 and 45 Hz limits; the knee design spend
 much larger margin.
 <!-- RESULTS:END -->
 
+<!-- FRAMED:START -->
+## Benchmark on published data (FRAMED)
+
+To check the method against a reputed external source, the pipeline was re-run on **FRAMED** [Regenwetter, Weaver & Ahmed,
+*Computer-Aided Design* (Elsevier) 2023, MIT DeCoDE Lab; data MIT-licensed]: 4,047 SolidWorks-simulated bicycle frames
+(39 inputs, 10 outputs: deflections, safety factors, mass). Code: `src/framed/`; run `python -m src.framed.run --stage all`.
+Report: `reports/framed/index.html` (also `reports/framed_benchmark.md`).
+
+- **Paper claims:** 11 of 11 checkable dataset claims reproduce from the released data (frame counts within ±2, case-study frames exact).
+- **Table 4 reproduction:** the paper's five models, rebuilt with the authors' hyperparameters on 10 × 5-fold CV (AutoGluon 1 × 5), keep the published ranking but score higher than published (data release has 71 fewer frames than the paper; protocol inferred). Reproduced AutoML MAE equals the paper's 0.182.
+- **This project's additions** (beam-theory tube features, log targets, guardrails, calibrated UQ) on identical folds:
+
+| Model | Origin | R² (mean ± std) | MAE (std.) | Paper Table 4 R² | Folds |
+|---|---|---|---|---|---|
+| AutoGluon + physics | this project | 0.747 ± 0.052 | 0.157 |  | 5 |
+| Deep ensemble + physics | this project | 0.734 ± 0.048 | 0.189 |  | 50 |
+| Physics-guided MLP | this project | 0.717 ± 0.048 | 0.203 |  | 50 |
+| XGBoost + physics | this project | 0.705 ± 0.055 | 0.198 |  | 50 |
+| Gaussian process + physics | this project | 0.651 ± 0.084 | 0.236 |  | 50 |
+| AutoML (AutoGluon) | paper, reproduced | 0.737 ± 0.044 | 0.182 | 0.605 | 5 |
+| XGBoost | paper, reproduced | 0.691 ± 0.049 | 0.227 | 0.595 | 50 |
+| Neural network | paper, reproduced | 0.592 ± 0.058 | 0.309 | 0.545 | 50 |
+| Decision tree | paper, reproduced | 0.514 ± 0.046 | 0.338 | 0.440 | 50 |
+| K-nearest neighbours | paper, reproduced | 0.378 ± 0.030 | 0.447 | 0.306 | 50 |
+
+  Published Table 4 values are compared descriptively only (different data release, inferred protocol). Physics features lift AutoGluon by +0.010 R² (not significant over 5 folds, p = 0.15) and cut its MAE by 13 % (no significance test on MAE); gains over the other four paper models are significant (corrected resampled t-test, p < 0.01). Deep-ensemble 95 % intervals cover 94.6–98.4 % of held-out frames (per output, 5 folds).
+- **Worst-case error and speed (CLAUDE.md metrics):** max relative error over all folds is 125–10,047 % per output for AutoGluon + physics and 144–12,071 % for the deep ensemble (near-zero safety factors and deflections dominate; deflection denominators are floored at 5 % of the training median). Single-design inference of the four in-process models is 0.02–0.07× the speed of the analytic mass estimate (that baseline predicts mass only), and batch inference is 6.8e+04–5.4e+06× faster than a nominal 180 s FE run.
+- **Optimisation** of the paper's titanium frame 3853 (surrogate only, not FE re-verified; changes are relative to the surrogate's own 2.55 kg prediction for the reference, FE 2.84 kg): -23.8 % mass and -30.5 % in-plane deflection at mean SF ≥ 1; requiring SF ≥ 1 on the 95 % lower bound instead needs +20.4 % mass.
+- **Limits:** bicycle, not motorcycle; SF labels are mesh-sensitive (paper Sec. 3.5); no FE re-check of optimised frames.
+<!-- FRAMED:END -->
+
 ## What changed in V1
 
 | Change | Why |
