@@ -332,8 +332,8 @@ def test_report_builds_from_fixtures(tmp_path):
     for k, v in arts.items():
         (tmp_path / f"{k}.json").write_text(json.dumps(v))
     md = tmp_path / "r.md"
-    page = build_report(tmp_path, tmp_path / "out", md_path=md).read_text()
-    text = md.read_text()
+    page = build_report(tmp_path, tmp_path / "out", md_path=md).read_text(encoding="utf-8")
+    text = md.read_text(encoding="utf-8")
     assert "Regenwetter" in page and "Regenwetter" in text
     for m, v in ref.TABLE4.items():
         assert f"{v['r2']:.3f}" in page and f"{v['mae']:.3f}" in page
@@ -358,3 +358,10 @@ def test_report_optimisation_section_no_feasible():
                                              "algorithms": {"nsga2": {"evaluations": 6000}, "parego": {"evaluations": 150}}}}}
     out = sec_optimisation({"optimize": opt}, None)
     assert "No feasible design was found in 6,150 evaluations" in out and "both</em> runs" in out
+
+
+def test_load_framed_rejects_bad_columns(tmp_path):
+    p = tmp_path / "bad.csv"
+    pd.DataFrame({"a": [1.0], "b": [2.0]}).to_csv(p)
+    with pytest.raises(ValueError, match="39 input columns"):
+        load_framed(p)

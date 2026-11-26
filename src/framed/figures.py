@@ -24,8 +24,9 @@ def _layout(fig, title=None, height=420, **kw):
                       font=dict(family="Public Sans, system-ui, sans-serif", size=12, color=MUTED),
                       title_font=dict(color=INK, size=15))
     if title:  # title on its own line, legend below it
-        fig.update_layout(margin=dict(t=96), title=dict(y=0.985, yanchor="top"),
-                          legend=dict(y=1.0, yanchor="bottom", x=0, xanchor="left"))
+        sub_titles = bool(fig.layout.annotations)  # subplot titles sit just above the plots: lift the legend
+        fig.update_layout(margin=dict(t=130 if sub_titles else 96), title=dict(y=0.99, yanchor="top"),
+                          legend=dict(y=1.0 + (0.1 if sub_titles else 0), yanchor="bottom", x=0, xanchor="left"))
     fig.update_xaxes(gridcolor="#eef1f5", linecolor=BORDER, zerolinecolor=BORDER)
     fig.update_yaxes(gridcolor="#eef1f5", linecolor=BORDER, zerolinecolor=BORDER)
     return fig
@@ -138,8 +139,10 @@ def fig_check_status(df: pd.DataFrame, title: str) -> go.Figure:
     """Horizontal % deviation bars, coloured by pass/fail, for a stats/reproduction comparison table."""
     colors = [NEUTRAL if p is None else STATUS["good"] if p else STATUS["critical"] for p in df["pass"]]
     fig = go.Figure(go.Bar(y=df["quantity"], x=df["pct_dev"], orientation="h", marker_color=colors,
-                           text=df["pct_dev"].round(2).astype(str) + " %", textposition="outside"))
-    return _layout(fig, title, height=40 * len(df) + 120, xaxis_title="Deviation from paper (%)")
+                           text=df["pct_dev"].round(2).astype(str) + " %", textposition="outside", cliponaxis=False))
+    pad = max(0.5, 0.25 * float(df["pct_dev"].abs().max()))
+    return _layout(fig, title, height=40 * len(df) + 120, xaxis_title="Deviation from paper (%)",
+                   xaxis_range=[float(df["pct_dev"].min()) - pad, float(df["pct_dev"].max()) + pad])
 
 
 def fig_framed_pareto(front: pd.DataFrame, table: pd.DataFrame, material: str) -> go.Figure:

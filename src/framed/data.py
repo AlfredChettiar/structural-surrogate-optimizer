@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import urllib.request
 from pathlib import Path
 
@@ -39,7 +40,11 @@ def fetch_framed(dest: Path = fc.FRAMED_DIR, force: bool = False) -> dict[str, P
 
 def load_framed(path: Path | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
     """(X, Y): X = first 39 columns, Y = 10 outputs with abs() as in the authors' Analysis.ipynb."""
-    df = pd.read_csv(path or fc.FRAMED_DIR / fc.FILENAMES["data"], index_col=0)
+    # FRAMED_CSV env var lets you train on your own file with the same columns (docs/FRAMED_PROJECT.md, section 8)
+    df = pd.read_csv(path or os.environ.get("FRAMED_CSV") or fc.FRAMED_DIR / fc.FILENAMES["data"], index_col=0)
+    missing = [c for c in fc.Y_COLS if c not in df.columns]
+    if df.shape[1] < fc.N_X or missing:
+        raise ValueError(f"expected 39 input columns then the 10 outputs; missing outputs: {missing}")
     X = df.iloc[:, : fc.N_X].astype(float)
     Y = df[fc.Y_COLS].astype(float).copy()
     Y[fc.ABS_COLS] = Y[fc.ABS_COLS].abs()

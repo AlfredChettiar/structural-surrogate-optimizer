@@ -263,7 +263,10 @@ def test_prompt_hook_logs_and_routes(tmp_path):
 
 
 # ----------------------------------------------------------------------------- artifact smoke tests
-needs_artifacts = pytest.mark.skipif(not config.METRICS_JSON.exists(), reason="run src.train first")
+# Committed JSON results alone are not enough: the figures and app also need the git-ignored dataset and model files
+_trained = config.DATASET_CSV.exists() and any(config.MODELS_DIR.glob("*.joblib"))
+needs_artifacts = pytest.mark.skipif(not (config.METRICS_JSON.exists() and _trained),
+                                     reason="run src.data_generator and src.train first")
 
 
 @needs_artifacts
@@ -288,7 +291,7 @@ def test_report_figures_build():
     assert len(figs) >= 14
 
 
-@pytest.mark.skipif(not (config.METRICS_JSON.exists() and config.OPTIMIZATION_JSON.exists()),
+@pytest.mark.skipif(not (config.METRICS_JSON.exists() and config.OPTIMIZATION_JSON.exists() and _trained),
                     reason="run src.train and src.optimizer first")
 def test_streamlit_app_runs_without_exceptions():
     pytest.importorskip("streamlit")

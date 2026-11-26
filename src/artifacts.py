@@ -11,7 +11,7 @@ from src import config
 
 
 def _json(path: Path):
-    return json.loads(path.read_text()) if path.exists() else None
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
 def load_all() -> dict:

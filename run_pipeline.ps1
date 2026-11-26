@@ -1,7 +1,7 @@
 # Runs the full pipeline in the project venv and writes one log per step to .\logs\
 #   powershell -ExecutionPolicy Bypass -File .\run_pipeline.ps1          (full, ~6-10 min on a laptop CPU)
 #   powershell -ExecutionPolicy Bypass -File .\run_pipeline.ps1 -Fast    (quicker smoke run)
-param([switch]$Fast)
+param([switch]$Fast, [switch]$Framed)
 $ErrorActionPreference = "Continue"
 Set-Location $PSScriptRoot
 $env:PYTHONIOENCODING = "utf-8"
@@ -15,6 +15,9 @@ $steps = @(
     @{ name = "4_report";         args = @("-m", "src.report") },
     @{ name = "5_pytest";         args = @("-m", "pytest", "-q") }
 )
+if ($Framed) {  # FRAMED benchmark on published data (docs/FRAMED_PROJECT.md) instead of the V1 steps
+    $steps = @(@{ name = "framed_all"; args = @("-m", "src.framed.run", "--stage", "all") + $extra })
+}
 $summary = @()
 foreach ($s in $steps) {
     Write-Host "=== $($s.name) ===" -ForegroundColor Cyan

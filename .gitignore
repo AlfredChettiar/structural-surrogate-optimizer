@@ -16,7 +16,8 @@ logs/
 prompts/
 
 # FRAMED benchmark
-data/external/
+data/external/framed/*.pdf
+data/external/framed/*.part
+!data/framed_pareto.csv
 reports/framed/paper_pages/
 .venv-ag/
-models/framed/*.npz

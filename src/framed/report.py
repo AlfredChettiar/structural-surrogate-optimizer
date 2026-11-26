@@ -105,7 +105,7 @@ ids.forEach(i=>{const el=document.getElementById(i);if(el)obs.observe(el)});
 # ----------------------------------------------------------------------------- helpers
 def _load(d: Path, name: str):
     p = Path(d) / f"{name}.json"
-    return json.loads(p.read_text()) if p.exists() else None
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
 
 
 def esc(x) -> str:

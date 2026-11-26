@@ -1,0 +1,4 @@
+# Byte-exact data: the FRAMED CSV is SHA-256 verified, so Git for Windows must not convert its line endings
+data/external/framed/*.csv -text
+*.npz binary
+*.png binary

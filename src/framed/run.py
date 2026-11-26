@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import platform
+import sys
 import time
 
 import numpy as np
@@ -14,12 +15,12 @@ from src.framed import config as fc
 
 def _save(name: str, obj: dict) -> None:
     fc.MODELS_DIR.mkdir(parents=True, exist_ok=True)
-    (fc.MODELS_DIR / f"{name}.json").write_text(json.dumps(obj, indent=2, default=float))
+    (fc.MODELS_DIR / f"{name}.json").write_text(json.dumps(obj, indent=2, default=float), encoding="utf-8")
 
 
 def load_artifact(name: str):
     p = fc.MODELS_DIR / f"{name}.json"
-    return json.loads(p.read_text()) if p.exists() else None
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
 
 
 def env_info() -> dict:
@@ -196,14 +197,57 @@ def stage_report(args):
     print(build_report(data=load_framed()))
 
 
+def stage_figures(args):
+    """Static PNGs of the report figures for docs/FRAMED_PROJECT.md (needs kaleido + a Chrome/Chromium)."""
+    import pandas as pd
+    from src import config as v1
+    from src.framed import figures as F
+    from src.framed.data import load_framed
+    from src.framed.paper_stats import stats_comparison
+    out = v1.ROOT / "docs" / "framed" / "img"
+    out.mkdir(parents=True, exist_ok=True)
+    X, Y = load_framed()
+    repro, ours, opt = load_artifact("reproduction"), load_artifact("ours"), load_artifact("optimize")
+    figs = {"01_materials": F.fig_material_breakdown(X), "02_claims": F.fig_check_status(stats_comparison(X, Y),
+            "Dataset claims: deviation from the paper (grey = context only)"),
+            "03_performance_pairs": F.fig_performance_pairs(Y), "04_correlation": F.fig_objective_correlation(Y),
+            "05_physical_validation": F.fig_physical_validation()}
+    if repro:
+        t = pd.DataFrame(repro["table"]).set_index("model")
+        figs["06_table4"] = F.fig_table4_comparison(t)
+        with np.load(fc.MODELS_DIR / "reproduction_oof.npz") as z:
+            figs["07_parity_paper_automl"] = F.fig_parity_grid(Y, z["autogluon"] if "autogluon" in z.files else
+                                                                z["xgboost"], "Paper's best model (reproduced), out-of-fold")
+    if ours:
+        with np.load(fc.MODELS_DIR / "ours_oof.npz") as z:
+            figs["08_parity_ours"] = F.fig_parity_grid(Y, z[ours["best"]], f"{F.MODEL_LABELS[ours['best']]}, out-of-fold")
+            figs["09_parity_deep_ensemble"] = F.fig_parity_grid(Y, z["deep_ensemble_phys"],
+                                                                 "Deep ensemble + physics, out-of-fold")
+    if opt:
+        fr = pd.read_csv(v1.DATA_DIR / "framed_pareto.csv")
+        for i, (key, st) in enumerate(opt["studies"].items()):
+            sel = fr[(fr["material"] == st["material"]) & (fr["mode"] == ("robust" if st["robust"] else "nominal"))]
+            if len(sel):
+                figs[f"1{i}_pareto_{st['material'].lower()}_{'robust' if st['robust'] else 'nominal'}"] = \
+                    F.fig_framed_pareto(sel, pd.DataFrame(st["table"]), key)
+    for name, fig in figs.items():
+        w = 1200 if name.startswith(("03", "07", "08", "09", "04")) else 1000
+        fig.write_image(out / f"{name}.png", width=w, height=fig.layout.height or 450, scale=1.5)
+        print(out / f"{name}.png")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--stage", default="all")
     ap.add_argument("--fast", action="store_true")
     ap.add_argument("--models", default="", help="comma list; results merge into the existing artefact")
     args = ap.parse_args(argv)
-    stages = {"fetch": stage_fetch, "stats": stage_stats, "baselines": stage_baselines, "ours": stage_ours, "optimize": stage_optimize, "report": stage_report}
-    for name in (stages if args.stage == "all" else [args.stage]):
+    for stream in (sys.stdout, sys.stderr):  # Windows consoles/log redirects default to cp1252; output has ≤, ·, ²
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+    stages = {"fetch": stage_fetch, "stats": stage_stats, "baselines": stage_baselines, "ours": stage_ours, "optimize": stage_optimize, "report": stage_report, "figures": stage_figures}
+    order = ["fetch", "stats", "baselines", "ours", "optimize", "report"]  # "figures" is opt-in (needs kaleido)
+    for name in (order if args.stage == "all" else [args.stage]):
         print(f"=== {name}", flush=True)
         stages[name](args)
 
