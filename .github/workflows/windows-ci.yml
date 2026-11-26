@@ -22,6 +22,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
+      - name: Build V1 artefacts (dataset and model files are git-ignored)
+        run: |
+          python -m src.data_generator
+          python -m src.train --fast
+          python -m src.optimizer --fast
       - name: Tests (V1 + FRAMED, incl. slow)
         run: python -m pytest -q
       - name: FRAMED pipeline smoke run
