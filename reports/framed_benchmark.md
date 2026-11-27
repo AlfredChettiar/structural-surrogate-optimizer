@@ -9,7 +9,7 @@ Reference: L. Regenwetter, C. Weaver, F. Ahmed, "FRAMED: An AutoML Approach for 
 - Dataset claims reproduced: 11 of 11.
 - Best reproduced paper model (AutoML (AutoGluon)): R² 0.737 (published best 0.605).
 - Best model of this project (AutoGluon + physics): R² 0.747 on identical folds (vs AutoML (AutoGluon): +0.010, p = 0.15 over 5 folds).
-- Published Table 4 values are compared descriptively only (different data release, inferred protocol).
+- Published Table 4 values are compared descriptively only: the paper's evaluation code is not public, and data version and fold shuffling were tested and ruled out as the cause of the gap.
 
 ## Dataset claims
 

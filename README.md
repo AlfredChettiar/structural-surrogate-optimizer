@@ -135,7 +135,7 @@ To check the method against a reputed external source, the pipeline was re-run o
 Report: `reports/framed/index.html` (also `reports/framed_benchmark.md`). Full write-up, local training guide and data format: [`docs/FRAMED_PROJECT.md`](docs/FRAMED_PROJECT.md).
 
 - **Paper claims:** 11 of 11 checkable dataset claims reproduce from the released data (frame counts within ±2, case-study frames exact).
-- **Table 4 reproduction:** the paper's five models, rebuilt with the authors' hyperparameters on 10 × 5-fold CV (AutoGluon 1 × 5), keep the published ranking but score higher than published (data release has 71 fewer frames than the paper; protocol inferred). Reproduced AutoML MAE equals the paper's 0.182.
+- **Table 4 reproduction:** the paper's five models, rebuilt with the authors' hyperparameters on 10 × 5-fold CV (AutoGluon 1 × 5), keep the published ranking but score higher than published. Rebuilding the paper's pre-release data (4,120 frames) with the authors' own preprocessing and trying unshuffled folds move R² by ≤ 0.02, so the gap lies in the paper's unpublished metric computation (`scripts/framed_gap_check.py`). Reproduced AutoML MAE equals the paper's 0.182.
 - **This project's additions** (beam-theory tube features, log targets, guardrails, calibrated UQ) on identical folds:
 
 | Model | Origin | R² (mean ± std) | MAE (std.) | Paper Table 4 R² | Folds |
@@ -151,7 +151,7 @@ Report: `reports/framed/index.html` (also `reports/framed_benchmark.md`). Full w
 | Decision tree | paper, reproduced | 0.514 ± 0.046 | 0.338 | 0.440 | 50 |
 | K-nearest neighbours | paper, reproduced | 0.378 ± 0.030 | 0.447 | 0.306 | 50 |
 
-  Published Table 4 values are compared descriptively only (different data release, inferred protocol). Physics features lift AutoGluon by +0.010 R² (not significant over 5 folds, p = 0.15) and cut its MAE by 13 % (no significance test on MAE); gains over the other four paper models are significant (corrected resampled t-test, p < 0.01). Deep-ensemble 95 % intervals cover 94.6–98.4 % of held-out frames (per output, 5 folds).
+  Published Table 4 values are compared descriptively only (the paper's evaluation code is not public). Physics features lift AutoGluon by +0.010 R² (not significant over 5 folds, p = 0.15) and cut its MAE by 13 % (no significance test on MAE); gains over the other four paper models are significant (corrected resampled t-test, p < 0.01). Deep-ensemble 95 % intervals cover 94.6–98.4 % of held-out frames (per output, 5 folds).
 - **Worst-case error and speed (CLAUDE.md metrics):** max relative error over all folds is 125–10,047 % per output for AutoGluon + physics and 144–12,071 % for the deep ensemble (near-zero safety factors and deflections dominate; deflection denominators are floored at 5 % of the training median). Single-design inference of the four in-process models is 0.02–0.07× the speed of the analytic mass estimate (that baseline predicts mass only), and batch inference is 6.8e+04–5.4e+06× faster than a nominal 180 s FE run.
 - **Optimisation** of the paper's titanium frame 3853 (surrogate only, not FE re-verified; changes are relative to the surrogate's own 2.55 kg prediction for the reference, FE 2.84 kg): -23.8 % mass and -30.5 % in-plane deflection at mean SF ≥ 1; requiring SF ≥ 1 on the 95 % lower bound instead needs +20.4 % mass.
 - **Limits:** bicycle, not motorcycle; SF labels are mesh-sensitive (paper Sec. 3.5); no FE re-check of optimised frames.

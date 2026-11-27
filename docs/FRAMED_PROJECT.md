@@ -121,11 +121,31 @@ ten standardised outputs, as in the paper.
 
 - **Ranking preserved:** AutoML > XGBoost > NN > decision tree > KNN, exactly as published.
 - **MAE matches closely** (within 0.046; AutoML's 0.182 is identical to the paper's).
-- **R² is 0.05–0.13 higher than published.** Two consistent explanations: the release lacks 71 of the paper's frames
-  (plausibly the most extreme), and the paper's MSE values (≈1.0) are not consistent with unit-variance targets at its
-  own R², which points to a different scaling or data version. The authors' AutoML training code is not public, so the
-  protocol here is inferred (Section 5.1). These gaps are reported, not tuned away; the pass/fail rule (±0.05 on both R²
-  and MAE) therefore marks only the neural network as "within tolerance".
+- **R² is 0.05–0.13 higher than published, and MSE is far lower** (0.34–0.70 against the paper's 0.98–1.27). The
+  paper's MSE values cannot come from unit-variance targets at its own R². The pass/fail rule (±0.05 on both R² and
+  MAE) therefore marks only the neural network as "within tolerance". The gap is reported, not tuned away.
+
+**Why the published and reproduced numbers differ (tested, `scripts/framed_gap_check.py`).** Two explanations were
+checked with the paper's three fast models (decision tree, KNN, XGBoost):
+
+1. *Data version.* The paper reports 4,118 frames and the release has 4,047. Running the authors' own preprocessing
+   (`Prepare Datasets.ipynb`) on their raw SolidWorks batch files gives 4,120 frames. A final geometric-validity check
+   then drops 73, leaving exactly the released 4,047 (identical to 3 × 10⁻¹⁴). The dropped frames are not extreme: every
+   output maximum is below the released data's, and only 2 have a wall thicker than the tube.
+2. *Unshuffled folds* (frames ordered by ID, i.e. by simulation batch).
+
+| Variant | Decision tree R² / MSE | KNN R² / MSE | XGBoost R² / MSE |
+|---|---|---|---|
+| **Paper (Table 4)** | **0.440 / 1.156** | **0.306 / 1.270** | **0.595 / 0.978** |
+| Released 4,047, shuffled (this study) | 0.513 / 0.563 | 0.377 / 0.697 | 0.688 / 0.393 |
+| Pre-release 4,120, shuffled | 0.502 / 0.580 | 0.380 / 0.702 | 0.686 / 0.399 |
+| Released 4,047, not shuffled | 0.507 / 0.579 | 0.358 / 0.727 | 0.674 / 0.418 |
+| Pre-release 4,120, not shuffled | 0.499 / 0.587 | 0.360 / 0.724 | 0.670 / 0.423 |
+
+Neither explains the gap: data version moves R² by at most 0.011 and fold order by at most 0.019, and MSE never
+approaches 1. What remains is how the paper computed its metrics (scaling, aggregation or splitting), for which the
+authors' evaluation code is not public. An exact match would need that code from the authors, and for AutoML also the
+same 2022 AutoGluon version. What does reproduce is the dataset itself, the model ranking and MAE.
 
 Out-of-fold parity plot of the paper's best model, drawn with the same axes and units as paper Fig. 9:
 
@@ -274,8 +294,8 @@ reference frame.
 ## 6. Limitations and honest caveats
 
 - **A bicycle, not a motorcycle.** FRAMED is the closest public, peer-reviewed, tube-parametric two-wheeler dataset.
-- **Inferred protocol, different data version.** The release has 4,047 frames against the paper's 4,118, and the
-  paper's MSE is inconsistent with its R².
+- **Inferred evaluation protocol.** The paper's MSE is inconsistent with its R², and its evaluation code is not public.
+  Data version and fold order were tested and ruled out (Section 4.2).
 - **Noisy safety-factor labels.** They come from solid meshes with junction singularities, per the paper itself.
 - **Surrogate-only optimisation.** There was no FE re-check (out of scope), and the surrogate under-predicts frame
   3853's mass by 10 %.
@@ -426,6 +446,7 @@ Notes:
 | `src/framed/figures.py` | Plotly figures (portfolio palette) |
 | `src/framed/report.py` | HTML report + Markdown summary |
 | `src/framed/run.py` | Command-line pipeline (`--stage …`) |
+| `scripts/framed_gap_check.py`, `scripts/framed_authors/` | Tests why published and reproduced scores differ (rebuilds the pre-release data with the authors' MIT-licensed preprocessing) |
 | `tests/test_framed.py` | 34 tests (2 marked `slow`) |
 | `data/external/framed/all_structural_data_oh.csv` + `LICENSE` | FRAMED dataset (MIT, © 2022 Lyleregenwetter), 4,047 × 50 |
 | `data/framed_pareto.csv` | All Pareto designs from the optimisation |
